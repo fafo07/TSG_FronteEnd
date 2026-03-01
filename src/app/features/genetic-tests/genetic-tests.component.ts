@@ -60,8 +60,9 @@ export class GeneticTestsComponent {
     if (this.form.invalid) return;
 
     const raw = this.form.getRawValue();
+    const gene: GeneticTest['gene'] | undefined = raw.gene === 'TSC1' || raw.gene === 'TSC2' ? raw.gene : undefined;
     const payload = {
-      gene: raw.gene ?? undefined,
+      gene,
       test_date: raw.test_date ?? undefined,
       variant: raw.variant ?? undefined,
       lab_name: raw.lab_name ?? undefined,
