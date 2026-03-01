@@ -1,0 +1,47 @@
+{
+  "menu": {
+    "dashboard": "Painel",
+    "patients": "Pacientes",
+    "manifestations": "Avaliações",
+    "treatments": "Tratamentos",
+    "adverseEvents": "Efeitos adversos",
+    "contacts": "Contatos",
+    "catalogs": "Catálogos"
+  },
+  "common": {
+    "new": "Novo",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "search": "Buscar",
+    "actions": "Ações",
+    "noRecords": "Nenhum registro encontrado",
+    "required": "Campo obrigatório",
+    "invalidDate": "Data inválida"
+  },
+  "auth": {
+    "login": "Entrar",
+    "access": "Acessar",
+    "username": "Usuário",
+    "password": "Senha",
+    "invalidCredentials": "Usuário ou senha inválidos"
+  },
+  "patient": {
+    "title": "Pacientes",
+    "fullName": "Nome completo",
+    "birthDate": "Data de nascimento",
+    "diagnosisDate": "Data do diagnóstico"
+  },
+  "manifestation": {
+    "title": "Avaliações",
+    "evaluationDate": "Data da avaliação"
+  },
+  "findings": {
+    "title": "Achados",
+    "saved": "Salvo"
+  },
+  "treatment": {
+    "title": "Tratamentos",
+    "medication": "Medicação",
+    "dateRangeError": "A data de fim deve ser maior ou igual à data de início"
+  }
+}
