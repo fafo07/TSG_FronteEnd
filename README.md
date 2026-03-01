@@ -20,8 +20,10 @@ npm install
 Defina a URL base em `src/app/core/config/environment.ts`:
 
 ```ts
-apiBaseUrl: 'http://localhost:8080/api'
+apiBaseUrl: '/api'
 ```
+
+> O projeto usa proxy de desenvolvimento (`proxy.conf.json`) para redirecionar `/api` para `http://localhost:8080`, evitando erro de CORS no login local.
 
 ## Executar
 ```bash
