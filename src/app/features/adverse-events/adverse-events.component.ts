@@ -65,7 +65,14 @@ export class AdverseEventsComponent {
 
   create(): void {
     if (this.form.invalid) return;
-    this.service.create(this.patientId, this.form.getRawValue()).subscribe(() => {
+    const raw = this.form.getRawValue();
+    const payload = {
+      event_name: raw.event_name ?? undefined,
+      event_date: raw.event_date ?? undefined,
+      treatment_id: raw.treatment_id ?? undefined
+    };
+
+    this.service.create(this.patientId, payload).subscribe(() => {
       this.form.reset({ event_name: '', event_date: '', treatment_id: null });
       this.load();
     });

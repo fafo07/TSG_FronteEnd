@@ -54,7 +54,11 @@ export class ContactsComponent {
   create(): void {
     if (this.form.invalid) return;
 
-    const { is_primary, ...contactPayload } = this.form.getRawValue();
+    const { is_primary, ...rawPayload } = this.form.getRawValue();
+    const contactPayload = {
+      full_name: rawPayload.full_name ?? undefined,
+      email: rawPayload.email ?? undefined
+    };
     if (is_primary && !window.confirm('Este contato será definido como principal. Deseja continuar?')) {
       return;
     }

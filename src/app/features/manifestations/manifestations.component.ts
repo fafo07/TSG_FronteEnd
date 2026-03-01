@@ -67,7 +67,14 @@ export class ManifestationsComponent {
   create(): void {
     if (this.form.invalid) return;
 
-    this.service.create(this.patientId, this.form.getRawValue()).subscribe(() => {
+    const raw = this.form.getRawValue();
+    const payload = {
+      system_code: raw.system_code ?? undefined,
+      evaluation_date: raw.evaluation_date ?? undefined,
+      notes: raw.notes ?? undefined
+    };
+
+    this.service.create(this.patientId, payload).subscribe(() => {
       this.form.reset({ system_code: '', evaluation_date: '', notes: '' });
       this.load();
     });

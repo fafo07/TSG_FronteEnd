@@ -70,7 +70,15 @@ export class PatientsComponent {
       return;
     }
 
-    this.service.create(this.form.getRawValue()).subscribe(() => {
+    const raw = this.form.getRawValue();
+    const payload = {
+      full_name: raw.full_name ?? undefined,
+      date_of_birth: raw.date_of_birth ?? undefined,
+      diagnosis_date: raw.diagnosis_date ?? undefined,
+      country_code: raw.country_code ?? undefined
+    };
+
+    this.service.create(payload).subscribe(() => {
       this.form.reset({ full_name: '', date_of_birth: '', diagnosis_date: '', country_code: '' });
       this.load();
     });

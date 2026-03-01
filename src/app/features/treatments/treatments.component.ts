@@ -83,8 +83,17 @@ export class TreatmentsComponent {
       this.form.markAllAsTouched();
       return;
     }
-    const payload = this.form.getRawValue();
-    this.service.create(this.patientId, Number(payload.manifestation_id), payload).subscribe(() => {
+    const raw = this.form.getRawValue();
+    const payload = {
+      medication: raw.medication ?? undefined,
+      manifestation_id: raw.manifestation_id ?? undefined,
+      start_date: raw.start_date ?? undefined,
+      end_date: raw.end_date ?? undefined,
+      status: raw.status ?? undefined,
+      notes: raw.notes ?? undefined
+    };
+
+    this.service.create(this.patientId, Number(raw.manifestation_id), payload).subscribe(() => {
       this.form.reset({ medication: '', manifestation_id: null, start_date: '', end_date: '', status: 'ACTIVE', notes: '' });
       this.load();
     });

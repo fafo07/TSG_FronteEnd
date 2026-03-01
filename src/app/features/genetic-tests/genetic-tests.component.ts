@@ -59,7 +59,16 @@ export class GeneticTestsComponent {
   save(): void {
     if (this.form.invalid) return;
 
-    this.service.create(this.patientId, this.form.getRawValue()).subscribe(() => {
+    const raw = this.form.getRawValue();
+    const payload = {
+      gene: raw.gene ?? undefined,
+      test_date: raw.test_date ?? undefined,
+      variant: raw.variant ?? undefined,
+      lab_name: raw.lab_name ?? undefined,
+      notes: raw.notes ?? undefined
+    };
+
+    this.service.create(this.patientId, payload).subscribe(() => {
       this.form.reset({ gene: '', test_date: '', variant: '', lab_name: '', notes: '' });
       this.load();
     });
