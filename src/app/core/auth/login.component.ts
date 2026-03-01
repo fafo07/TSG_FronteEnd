@@ -1,5 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -19,7 +20,7 @@ import { AuthService } from './auth.service';
       <form [formGroup]="form" (ngSubmit)="submit()">
         <mat-form-field class="full-width"><mat-label>Usuário</mat-label><input matInput formControlName="username" /></mat-form-field>
         <mat-form-field class="full-width"><mat-label>Senha</mat-label><input matInput type="password" formControlName="password" /></mat-form-field>
-        <p *ngIf="error" style="color:#DC2626">Usuário ou senha inválidos</p>
+        <p *ngIf="error" style="color:#DC2626">{{ errorMessage }}</p>
         <button mat-flat-button color="primary" class="full-width">Acessar</button>
       </form>
     </mat-card>
@@ -31,15 +32,30 @@ export class LoginComponent {
   private auth = inject(AuthService);
   private router = inject(Router);
   error = false;
+  errorMessage = 'Usuário ou senha inválidos';
 
   form = this.fb.group({ username: ['', Validators.required], password: ['', Validators.required] });
 
   submit(): void {
     if (this.form.invalid) return;
+    this.error = false;
+    this.errorMessage = 'Usuário ou senha inválidos';
+
     const { username, password } = this.form.getRawValue();
     this.auth.login(username!, password!).subscribe({
       next: () => void this.router.navigate(['/dashboard']),
-      error: () => (this.error = true)
+      error: (err: unknown) => {
+        this.error = true;
+        if (err instanceof HttpErrorResponse) {
+          const backendMessage = (err.error?.message as string | undefined) ?? (err.error?.error as string | undefined);
+          this.errorMessage = backendMessage || `Erro no login (${err.status})`;
+          return;
+        }
+
+        if (err instanceof Error) {
+          this.errorMessage = err.message;
+        }
+      }
     });
   }
 }
