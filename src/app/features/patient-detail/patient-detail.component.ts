@@ -3,20 +3,17 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 
+import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
+
 @Component({
   standalone: true,
-  imports: [CommonModule, RouterLink, MatCardModule],
+  imports: [CommonModule, RouterLink, MatCardModule, PatientTabsComponent],
   template: `
+    <app-patient-tabs [patientId]="patientId" />
     <mat-card class="page-card">
       <h2>Paciente #{{ patientId }}</h2>
-      <p>Selecione um módulo para continuar.</p>
-      <div style="display:grid;grid-template-columns:repeat(2,minmax(220px,1fr));gap:1rem;max-width:900px">
-        <a [routerLink]="['/patients', patientId, 'genetic-tests']">Teste genético</a>
-        <a [routerLink]="['/patients', patientId, 'manifestations']">Avaliações</a>
-        <a [routerLink]="['/patients', patientId, 'treatments']">Tratamentos</a>
-        <a [routerLink]="['/patients', patientId, 'adverse-events']">Efeitos adversos</a>
-        <a [routerLink]="['/patients', patientId, 'contacts']">Contatos</a>
-      </div>
+      <p>Acesse os módulos do paciente pelas abas acima.</p>
+      <a [routerLink]="['/patients', patientId, 'overview']">Ir para dados gerais</a>
     </mat-card>
   `
 })

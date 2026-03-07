@@ -73,7 +73,7 @@ export class ContactsComponent {
     this.service.listByPatient(this.patientId).subscribe((data) => {
       this.contacts = unwrapResults(data);
       this.contacts.forEach((c) => {
-        if (this.primaryByContactId[c.contact_id] === undefined) this.primaryByContactId[c.contact_id] = false;
+        this.primaryByContactId[c.contact_id] = !!c.is_primary;
       });
     });
   }

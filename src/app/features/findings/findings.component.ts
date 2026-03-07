@@ -17,10 +17,15 @@ import { FindingCatalog } from '../../shared/models/models';
     <mat-card class="page-card">
       <h2>Achados da manifestação</h2>
       <p *ngIf="loading">Carregando...</p>
+      <p *ngIf="error" style="color:#DC2626">Erro ao carregar dados da manifestação.</p>
+
+      <div *ngIf="!loading && !findingsCatalog.length">Nenhum achado encontrado para o sistema desta manifestação.</div>
+
       <div *ngFor="let item of findingsCatalog" style="margin:.5rem 0">
         <mat-checkbox [checked]="selected[item.finding_code]" (change)="toggle(item.finding_code, $event.checked)">{{ item.finding_name }}</mat-checkbox>
       </div>
-      <button mat-flat-button color="primary" (click)="save()" [disabled]="loading">Salvar</button>
+
+      <button mat-flat-button color="primary" (click)="save()" [disabled]="loading || !!error">Salvar</button>
       <p *ngIf="saved" style="color:#16A34A">Salvo</p>
     </mat-card>
   `
@@ -36,16 +41,39 @@ export class FindingsComponent {
   selected: Record<string, boolean> = {};
   saved = false;
   loading = true;
+  error: string | null = null;
 
   constructor() {
-    this.manifestationsService.getById(this.manifestationId).subscribe((manifestation) => {
-      this.catalogService.list(1, manifestation.system_code, true).subscribe((catalogPage) => {
-        this.findingsCatalog = catalogPage.results;
-        this.mfService.get(this.manifestationId).subscribe((data) => {
-          data.forEach((d) => (this.selected[d.finding_code] = d.is_present));
-          this.loading = false;
+    this.manifestationsService.getById(this.manifestationId).subscribe({
+      next: (manifestation) => {
+        this.catalogService.list(1, manifestation.system_code, true).subscribe({
+          next: (catalogPage) => {
+            this.findingsCatalog = catalogPage.results;
+            this.findingsCatalog.forEach((f) => {
+              if (this.selected[f.finding_code] === undefined) this.selected[f.finding_code] = false;
+            });
+
+            this.mfService.get(this.manifestationId).subscribe({
+              next: (data) => {
+                data.forEach((d) => (this.selected[d.finding_code] = d.is_present));
+                this.loading = false;
+              },
+              error: () => {
+                this.error = 'Erro ao buscar achados já vinculados';
+                this.loading = false;
+              }
+            });
+          },
+          error: () => {
+            this.error = 'Erro ao buscar catálogo de achados';
+            this.loading = false;
+          }
         });
-      });
+      },
+      error: () => {
+        this.error = 'Erro ao buscar manifestação';
+        this.loading = false;
+      }
     });
   }
 
@@ -54,11 +82,11 @@ export class FindingsComponent {
   }
 
   save(): void {
-    const findings = Object.keys(this.selected).map((finding_code) => ({
-      finding_code,
-      is_present: this.selected[finding_code]
+    const findings = this.findingsCatalog.map((item) => ({
+      finding_code: item.finding_code,
+      is_present: !!this.selected[item.finding_code]
     }));
 
-    this.mfService.replace(this.manifestationId, findings as any).subscribe(() => (this.saved = true));
+    this.mfService.replace(this.manifestationId, findings).subscribe(() => (this.saved = true));
   }
 }

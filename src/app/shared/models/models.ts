@@ -6,6 +6,7 @@ export interface Patient {
   family_history?: string;
   diagnosis_date?: string;
   created_at?: string;
+  is_primary?: boolean;
 }
 
 export interface Country {
@@ -83,6 +84,7 @@ export interface Contact {
   address?: string;
   notes?: string;
   created_at?: string;
+  is_primary?: boolean;
 }
 
 export interface PatientContact {
