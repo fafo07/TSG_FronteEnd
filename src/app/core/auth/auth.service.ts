@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, map, of, tap } from 'rxjs';
 
 import { environment } from '../config/environment';
-import { UserSession } from '../../shared/models/models';
+import { AuthMeResponse, UserSession } from '../../shared/models/models';
 import { SessionStore } from './session.store';
 
 @Injectable({ providedIn: 'root' })
@@ -27,6 +27,24 @@ export class AuthService {
     return this.http.post<UserSession>(`${environment.apiBaseUrl}/auth/refresh`, refreshPayload).pipe(
       tap((session) => this.store.set(session)),
       map((s) => s.access_token),
+      catchError(() => of(null))
+    );
+  }
+
+
+  me(): Observable<AuthMeResponse> {
+    return this.http.get<AuthMeResponse>(`${environment.apiBaseUrl}/auth/me`);
+  }
+
+  hydrateUserFromApi(): Observable<AuthMeResponse | null> {
+    if (!this.isAuthenticated()) return of(null);
+
+    return this.me().pipe(
+      tap((me) => {
+        const current = this.store.session$.value;
+        if (!current) return;
+        this.store.set({ ...current, username: me.username ?? current.username, role: me.role ?? current.role });
+      }),
       catchError(() => of(null))
     );
   }

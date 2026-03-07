@@ -7,6 +7,7 @@ import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatToolbarModule } from '@angular/material/toolbar';
 
 import { AuthService } from '../auth/auth.service';
+import { SessionStore } from '../auth/session.store';
 
 @Component({
   standalone: true,
@@ -18,16 +19,19 @@ import { AuthService } from '../auth/auth.service';
       <mat-nav-list>
         <a mat-list-item routerLink="/dashboard">Painel</a>
         <a mat-list-item routerLink="/patients">Pacientes</a>
-        <a mat-list-item routerLink="/catalogs">Catálogos</a>
+        <div style="padding:0 1rem .25rem;font-size:.85rem;opacity:.75">Catálogos</div>
+        <a mat-list-item routerLink="/catalogs/systems">Sistemas</a>
+        <a mat-list-item routerLink="/catalogs/findings">Achados</a>
+        <a mat-list-item routerLink="/catalogs/countries">Países</a>
       </mat-nav-list>
-      <div style="padding:1rem;font-size:.85rem;opacity:.9">
-        Acesse manifestações, tratamentos, efeitos adversos e contatos pela tela de detalhe do paciente.
-      </div>
     </mat-sidenav>
     <mat-sidenav-content>
       <mat-toolbar color="primary" style="display:flex;justify-content:space-between">
         <span>TSC Registry</span>
-        <button mat-button (click)="logout()">Sair</button>
+        <div style="display:flex;align-items:center;gap:1rem">
+          <small>{{ sessionStore.session$.value?.username || 'Usuário' }}</small>
+          <button mat-button (click)="logout()">Sair</button>
+        </div>
       </mat-toolbar>
       <div style="padding:1rem"><router-outlet /></div>
     </mat-sidenav-content>
@@ -37,6 +41,7 @@ import { AuthService } from '../auth/auth.service';
 export class ShellComponent {
   private auth = inject(AuthService);
   private router = inject(Router);
+  sessionStore = inject(SessionStore);
 
   logout(): void {
     this.auth.logout();

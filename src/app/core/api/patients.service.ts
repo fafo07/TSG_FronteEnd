@@ -4,16 +4,17 @@ import { Observable } from 'rxjs';
 
 import { environment } from '../config/environment';
 import { Patient } from '../../shared/models/models';
+import { PaginatedResponse } from '../../shared/models/pagination';
 
 @Injectable({ providedIn: 'root' })
 export class PatientsService {
   private http = inject(HttpClient);
 
-  list(search = '', country_code = '', page = 0, pageSize = 10): Observable<Patient[]> {
-    let params = new HttpParams().set('page', page).set('pageSize', pageSize);
+  list(search = '', country = '', page = 1): Observable<PaginatedResponse<Patient>> {
+    let params = new HttpParams().set('page', page);
     if (search) params = params.set('search', search);
-    if (country_code) params = params.set('country_code', country_code);
-    return this.http.get<Patient[]>(`${environment.apiBaseUrl}/patients`, { params });
+    if (country) params = params.set('country', country);
+    return this.http.get<PaginatedResponse<Patient>>(`${environment.apiBaseUrl}/patients`, { params });
   }
 
   getById(id: number): Observable<Patient> {
@@ -25,6 +26,6 @@ export class PatientsService {
   }
 
   update(id: number, payload: Partial<Patient>): Observable<Patient> {
-    return this.http.put<Patient>(`${environment.apiBaseUrl}/patients/${id}`, payload);
+    return this.http.patch<Patient>(`${environment.apiBaseUrl}/patients/${id}`, payload);
   }
 }

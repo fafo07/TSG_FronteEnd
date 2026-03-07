@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 
 import { environment } from '../config/environment';
 import { Contact, PatientContact } from '../../shared/models/models';
+import { PaginatedResponse } from '../../shared/models/pagination';
 
 @Injectable({ providedIn: 'root' })
 export class ContactsService {
@@ -17,7 +18,7 @@ export class ContactsService {
     return this.http.put<Contact>(`${environment.apiBaseUrl}/contacts/${contactId}`, payload);
   }
 
-  listByPatient(patientId: number): Observable<Contact[]> {
+  listByPatient(patientId: number): Observable<PaginatedResponse<Contact> | Contact[]> {
     return this.http.get<Contact[]>(`${environment.apiBaseUrl}/patients/${patientId}/contacts`);
   }
 

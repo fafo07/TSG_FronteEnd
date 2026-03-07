@@ -1,7 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
+import { Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -10,77 +10,85 @@ import { MatTableModule } from '@angular/material/table';
 
 import { PatientsService } from '../../core/api/patients.service';
 import { Patient } from '../../shared/models/models';
-import { diagnosisAfterBirthValidator } from '../../shared/validators/domain.validators';
+import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
+import { ErrorStateComponent } from '../../shared/ui/error-state.component';
+import { LoadingStateComponent } from '../../shared/ui/loading-state.component';
+import { PageHeaderComponent } from '../../shared/ui/page-header.component';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, MatCardModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, MatCardModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, PageHeaderComponent],
   template: `
   <mat-card class="page-card">
-    <h2>Pacientes</h2>
+    <app-page-header title="Pacientes" subtitle="Gestão de pacientes do registro TSC">
+      <button mat-flat-button color="primary" routerLink="/patients/new">Novo paciente</button>
+    </app-page-header>
 
     <div style="display:flex;gap:1rem;align-items:center;margin-bottom:1rem">
-      <mat-form-field style="max-width:420px;width:100%"><mat-label>Buscar por nome</mat-label><input matInput [formControl]="searchControl" (keyup.enter)="load()"></mat-form-field>
-      <button mat-stroked-button color="primary" (click)="load()">Buscar</button>
+      <mat-form-field style="max-width:420px;width:100%"><mat-label>Buscar por nome</mat-label><input matInput [formControl]="searchControl" (keyup.enter)="load(1)"></mat-form-field>
+      <button mat-stroked-button color="primary" (click)="load(1)">Buscar</button>
     </div>
 
-    <form [formGroup]="form" (ngSubmit)="create()" style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:1rem;align-items:center">
-      <mat-form-field><mat-label>Nome completo</mat-label><input matInput formControlName="full_name"></mat-form-field>
-      <mat-form-field><mat-label>Data de nascimento</mat-label><input matInput type="date" formControlName="date_of_birth"></mat-form-field>
-      <mat-form-field><mat-label>Data do diagnóstico</mat-label><input matInput type="date" formControlName="diagnosis_date"></mat-form-field>
-      <button mat-flat-button color="primary">Novo</button>
-    </form>
+    <app-loading-state *ngIf="loading" />
+    <app-error-state *ngIf="error" message="Erro ao carregar pacientes" (retry)="load(page)" />
 
-    <p *ngIf="form.errors?.['invalidDiagnosisDate']" style="color:#DC2626">A data do diagnóstico deve ser maior ou igual à data de nascimento</p>
+    <ng-container *ngIf="!loading && !error">
+      <app-empty-state *ngIf="!patients.length" message="Nenhum paciente cadastrado ainda" actionLabel="Criar paciente" (action)="goNew()" />
 
-    <table mat-table [dataSource]="patients" class="full-width">
-      <ng-container matColumnDef="full_name"><th mat-header-cell *matHeaderCellDef>Nome</th><td mat-cell *matCellDef="let p">{{ p.full_name }}</td></ng-container>
-      <ng-container matColumnDef="country_code"><th mat-header-cell *matHeaderCellDef>País</th><td mat-cell *matCellDef="let p">{{ p.country_code || '-' }}</td></ng-container>
-      <ng-container matColumnDef="diagnosis_date"><th mat-header-cell *matHeaderCellDef>Diagnóstico</th><td mat-cell *matCellDef="let p">{{ p.diagnosis_date || '-' }}</td></ng-container>
-      <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Ações</th><td mat-cell *matCellDef="let p"><a [routerLink]="['/patients', p.patient_id]">Abrir</a></td></ng-container>
-      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-      <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
-    </table>
+      <table *ngIf="patients.length" mat-table [dataSource]="patients" class="full-width">
+        <ng-container matColumnDef="patient_id"><th mat-header-cell *matHeaderCellDef>ID</th><td mat-cell *matCellDef="let p">{{ p.patient_id }}</td></ng-container>
+        <ng-container matColumnDef="full_name"><th mat-header-cell *matHeaderCellDef>Nome</th><td mat-cell *matCellDef="let p">{{ p.full_name }}</td></ng-container>
+        <ng-container matColumnDef="country_code"><th mat-header-cell *matHeaderCellDef>País</th><td mat-cell *matCellDef="let p">{{ p.country_code || '-' }}</td></ng-container>
+        <ng-container matColumnDef="diagnosis_date"><th mat-header-cell *matHeaderCellDef>Diagnóstico</th><td mat-cell *matCellDef="let p">{{ p.diagnosis_date || '-' }}</td></ng-container>
+        <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Ações</th><td mat-cell *matCellDef="let p"><a [routerLink]="['/patients', p.patient_id, 'overview']">Visualizar</a> · <a [routerLink]="['/patients', p.patient_id, 'edit']">Editar</a></td></ng-container>
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+      </table>
+
+      <div *ngIf="patients.length" style="display:flex;justify-content:flex-end;align-items:center;gap:.75rem;margin-top:1rem">
+        <button mat-stroked-button (click)="load(page - 1)" [disabled]="!hasPrevious">Anterior</button>
+        <small>Página {{ page }}</small>
+        <button mat-stroked-button (click)="load(page + 1)" [disabled]="!hasNext">Próxima</button>
+      </div>
+    </ng-container>
   </mat-card>
   `
 })
 export class PatientsComponent {
   private service = inject(PatientsService);
   private fb = inject(FormBuilder);
+  private router = inject(Router);
 
   patients: Patient[] = [];
-  displayedColumns = ['full_name', 'country_code', 'diagnosis_date', 'actions'];
+  displayedColumns = ['patient_id', 'full_name', 'country_code', 'diagnosis_date', 'actions'];
+  loading = false;
+  error = false;
+  page = 1;
+  hasNext = false;
+  hasPrevious = false;
 
   searchControl = this.fb.control('');
 
-  form = this.fb.group(
-    { full_name: ['', [Validators.required, Validators.minLength(3)]], date_of_birth: [''], diagnosis_date: [''], country_code: [''] },
-    { validators: [diagnosisAfterBirthValidator('date_of_birth', 'diagnosis_date')] }
-  );
+  constructor() { this.load(1); }
 
-  constructor() { this.load(); }
-
-  load(): void {
-    this.service.list(this.searchControl.value ?? '').subscribe((data) => (this.patients = data));
-  }
-
-  create(): void {
-    if (this.form.invalid) {
-      this.form.markAllAsTouched();
-      return;
-    }
-
-    const raw = this.form.getRawValue();
-    const payload = {
-      full_name: raw.full_name ?? undefined,
-      date_of_birth: raw.date_of_birth ?? undefined,
-      diagnosis_date: raw.diagnosis_date ?? undefined,
-      country_code: raw.country_code ?? undefined
-    };
-
-    this.service.create(payload).subscribe(() => {
-      this.form.reset({ full_name: '', date_of_birth: '', diagnosis_date: '', country_code: '' });
-      this.load();
+  load(page: number): void {
+    if (page < 1) return;
+    this.loading = true;
+    this.error = false;
+    this.service.list(this.searchControl.value ?? '', '', page).subscribe({
+      next: (data) => {
+        this.patients = data.results;
+        this.page = page;
+        this.hasNext = !!data.next;
+        this.hasPrevious = !!data.previous;
+        this.loading = false;
+      },
+      error: () => {
+        this.error = true;
+        this.loading = false;
+      }
     });
   }
+
+  goNew(): void { void this.router.navigate(['/patients/new']); }
 }

@@ -4,24 +4,24 @@ import { Observable } from 'rxjs';
 
 import { environment } from '../config/environment';
 import { FindingCatalog } from '../../shared/models/models';
+import { PaginatedResponse } from '../../shared/models/pagination';
 
 @Injectable({ providedIn: 'root' })
 export class FindingsCatalogService {
   private http = inject(HttpClient);
 
-  list(system_code?: string, is_active?: boolean, search?: string): Observable<FindingCatalog[]> {
-    let params = new HttpParams();
-    if (system_code) params = params.set('system_code', system_code);
-    if (is_active !== undefined) params = params.set('is_active', is_active);
-    if (search) params = params.set('search', search);
-    return this.http.get<FindingCatalog[]>(`${environment.apiBaseUrl}/catalogs/findings`, { params });
+  list(page = 1, system?: string, isActive?: boolean): Observable<PaginatedResponse<FindingCatalog>> {
+    let params = new HttpParams().set('page', page);
+    if (system) params = params.set('system', system);
+    if (isActive !== undefined) params = params.set('is_active', isActive);
+    return this.http.get<PaginatedResponse<FindingCatalog>>(`${environment.apiBaseUrl}/findings`, { params });
   }
 
-  create(payload: FindingCatalog): Observable<FindingCatalog> {
-    return this.http.post<FindingCatalog>(`${environment.apiBaseUrl}/catalogs/findings`, payload);
+  create(payload: Partial<FindingCatalog>): Observable<FindingCatalog> {
+    return this.http.post<FindingCatalog>(`${environment.apiBaseUrl}/findings`, payload);
   }
 
   update(findingCode: string, payload: Partial<FindingCatalog>): Observable<FindingCatalog> {
-    return this.http.put<FindingCatalog>(`${environment.apiBaseUrl}/catalogs/findings/${findingCode}`, payload);
+    return this.http.patch<FindingCatalog>(`${environment.apiBaseUrl}/findings/${findingCode}`, payload);
   }
 }

@@ -9,41 +9,43 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
 
-import { ManifestationsService } from '../../core/api/manifestations.service';
 import { TreatmentsService } from '../../core/api/treatments.service';
+import { ManifestationsService } from '../../core/api/manifestations.service';
 import { Manifestation, Treatment } from '../../shared/models/models';
-import { endDateAfterStartDate } from '../../shared/validators/date-range.validator';
+import { dateRangeValidator } from '../../shared/validators/date-range.validator';
+import { unwrapResults } from '../../shared/models/pagination';
+import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, MatCardModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatButtonModule, MatTableModule],
+  imports: [CommonModule, ReactiveFormsModule, MatCardModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule, MatSelectModule, PatientTabsComponent],
   template: `
-  <mat-card class="page-card">
-    <h2>Tratamentos</h2>
-    <form [formGroup]="form" (ngSubmit)="create()" style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr auto;gap:1rem;align-items:center">
-      <mat-form-field><mat-label>Medicação</mat-label><input matInput formControlName="medication"></mat-form-field>
-      <mat-form-field>
-        <mat-label>Avaliação</mat-label>
-        <mat-select formControlName="manifestation_id">
-          <mat-option [value]="null">Selecione</mat-option>
-          <mat-option *ngFor="let m of manifestations" [value]="m.manifestation_id">#{{ m.manifestation_id }} - {{ m.system_code }} - {{ m.evaluation_date }}</mat-option>
-        </mat-select>
-      </mat-form-field>
-      <mat-form-field><mat-label>Data de início</mat-label><input matInput type="date" formControlName="start_date"></mat-form-field>
-      <mat-form-field><mat-label>Data de fim</mat-label><input matInput type="date" formControlName="end_date"></mat-form-field>
-      <button mat-flat-button color="primary" [disabled]="form.invalid">Salvar</button>
-    </form>
-    <p *ngIf="form.get('manifestation_id')?.hasError('required') && form.get('manifestation_id')?.touched" style="color:#DC2626">Campo obrigatório</p>
-    <p *ngIf="form.errors?.['dateRange']" style="color:#DC2626">A data de fim deve ser maior ou igual à data de início</p>
+    <app-patient-tabs [patientId]="patientId" />
 
-    <table mat-table [dataSource]="items" class="full-width">
-      <ng-container matColumnDef="medication"><th mat-header-cell *matHeaderCellDef>Medicação</th><td mat-cell *matCellDef="let item">{{ item.medication }}</td></ng-container>
-      <ng-container matColumnDef="manifestation_id"><th mat-header-cell *matHeaderCellDef>Avaliação</th><td mat-cell *matCellDef="let item">{{ item.manifestation_id }}</td></ng-container>
-      <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>Status</th><td mat-cell *matCellDef="let item">{{ item.status }}</td></ng-container>
-      <tr mat-header-row *matHeaderRowDef="columns"></tr>
-      <tr mat-row *matRowDef="let row; columns: columns"></tr>
-    </table>
-  </mat-card>
+    <mat-card class="page-card">
+      <h2>Tratamentos</h2>
+      <form [formGroup]="form" (ngSubmit)="save()" style="display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:1rem;align-items:center">
+        <mat-form-field><mat-label>Manifestação</mat-label><mat-select formControlName="manifestation_id"><mat-option *ngFor="let m of manifestations" [value]="m.manifestation_id">{{ m.system_code }} - {{ m.evaluation_date }}</mat-option></mat-select></mat-form-field>
+        <mat-form-field><mat-label>Medicação</mat-label><input matInput formControlName="medication" /></mat-form-field>
+        <mat-form-field><mat-label>Dose</mat-label><input matInput formControlName="dose" /></mat-form-field>
+        <mat-form-field><mat-label>Indicação</mat-label><input matInput formControlName="indication" /></mat-form-field>
+        <mat-form-field><mat-label>Início</mat-label><input matInput type="date" formControlName="start_date" /></mat-form-field>
+        <mat-form-field><mat-label>Fim</mat-label><input matInput type="date" formControlName="end_date" /></mat-form-field>
+        <mat-form-field><mat-label>Status</mat-label><input matInput formControlName="status" /></mat-form-field>
+        <mat-form-field style="grid-column:span 2"><mat-label>Observações</mat-label><input matInput formControlName="notes" /></mat-form-field>
+        <button mat-flat-button color="primary" [disabled]="form.invalid">{{ editingId ? 'Atualizar' : 'Salvar' }}</button>
+      </form>
+
+      <p *ngIf="form.errors?.['invalidDateRange']" style="color:#DC2626">A data de fim deve ser maior ou igual à data de início</p>
+
+      <table mat-table [dataSource]="items" class="full-width" style="margin-top:1rem">
+        <ng-container matColumnDef="medication"><th mat-header-cell *matHeaderCellDef>Medicação</th><td mat-cell *matCellDef="let t">{{ t.medication }}</td></ng-container>
+        <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>Status</th><td mat-cell *matCellDef="let t">{{ t.status || '-' }}</td></ng-container>
+        <ng-container matColumnDef="manifestation_id"><th mat-header-cell *matHeaderCellDef>Manifestação</th><td mat-cell *matCellDef="let t">{{ t.manifestation_id }}</td></ng-container>
+        <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Ações</th><td mat-cell *matCellDef="let t"><button mat-button (click)="startEdit(t)">Editar</button><button mat-button color="warn" (click)="remove(t)">Excluir</button></td></ng-container>
+        <tr mat-header-row *matHeaderRowDef="columns"></tr><tr mat-row *matRowDef="let row; columns: columns"></tr>
+      </table>
+    </mat-card>
   `
 })
 export class TreatmentsComponent {
@@ -55,47 +57,68 @@ export class TreatmentsComponent {
   patientId = Number(this.route.snapshot.paramMap.get('id'));
   items: Treatment[] = [];
   manifestations: Manifestation[] = [];
-  columns = ['medication', 'manifestation_id', 'status'];
+  columns = ['medication', 'status', 'manifestation_id', 'actions'];
+  editingId: number | null = null;
 
   form = this.fb.group(
     {
-      medication: ['', Validators.required],
       manifestation_id: [null as number | null, Validators.required],
+      medication: ['', Validators.required],
+      dose: [''],
+      indication: [''],
       start_date: [''],
       end_date: [''],
-      status: ['ACTIVE', Validators.required],
+      status: ['ACTIVE'],
       notes: ['']
     },
-    { validators: [endDateAfterStartDate('start_date', 'end_date')] }
+    { validators: [dateRangeValidator('start_date', 'end_date')] }
   );
 
   constructor() {
+    this.manifestationsService.listByPatient(this.patientId).subscribe((data) => (this.manifestations = unwrapResults(data)));
     this.load();
-    this.manifestationsService.listByPatient(this.patientId).subscribe((data) => (this.manifestations = data));
   }
 
   load(): void {
-    this.service.listByPatient(this.patientId).subscribe((data) => (this.items = data));
+    this.service.listByPatient(this.patientId).subscribe((data) => (this.items = unwrapResults(data)));
   }
 
-  create(): void {
-    if (this.form.invalid) {
-      this.form.markAllAsTouched();
-      return;
-    }
+  startEdit(item: Treatment): void {
+    this.editingId = item.treatment_id;
+    this.form.patchValue({ ...item });
+  }
+
+  remove(item: Treatment): void {
+    if (!window.confirm(`Excluir tratamento ${item.medication}?`)) return;
+    this.service.delete(item.treatment_id).subscribe(() => this.load());
+  }
+
+  save(): void {
+    if (this.form.invalid) return;
     const raw = this.form.getRawValue();
+    if (!raw.manifestation_id) return;
     const payload = {
+      manifestation_id: Number(raw.manifestation_id),
       medication: raw.medication ?? undefined,
-      manifestation_id: raw.manifestation_id ?? undefined,
+      dose: raw.dose ?? undefined,
+      indication: raw.indication ?? undefined,
       start_date: raw.start_date ?? undefined,
       end_date: raw.end_date ?? undefined,
       status: raw.status ?? undefined,
       notes: raw.notes ?? undefined
     };
 
-    this.service.create(this.patientId, Number(raw.manifestation_id), payload).subscribe(() => {
-      this.form.reset({ medication: '', manifestation_id: null, start_date: '', end_date: '', status: 'ACTIVE', notes: '' });
+    const done = () => {
+      this.form.reset({ manifestation_id: null, medication: '', dose: '', indication: '', start_date: '', end_date: '', status: 'ACTIVE', notes: '' });
+      this.editingId = null;
       this.load();
-    });
+    };
+
+    if (this.editingId) {
+      this.service.update(this.editingId, payload).subscribe(done);
+      return;
+    }
+
+    this.service.create(this.patientId, Number(raw.manifestation_id), payload).subscribe(done);
   }
 }

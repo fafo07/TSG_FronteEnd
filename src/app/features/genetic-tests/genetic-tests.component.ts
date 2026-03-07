@@ -10,24 +10,32 @@ import { MatTableModule } from '@angular/material/table';
 
 import { GeneticTestsService } from '../../core/api/genetic-tests.service';
 import { GeneticTest } from '../../shared/models/models';
+import { unwrapResults } from '../../shared/models/pagination';
 import { geneValidator } from '../../shared/validators/domain.validators';
+import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, MatCardModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule],
+  imports: [CommonModule, ReactiveFormsModule, MatCardModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule, PatientTabsComponent],
   template: `
+    <app-patient-tabs [patientId]="patientId" />
+
     <mat-card class="page-card">
-      <h2>Teste genético</h2>
-      <form [formGroup]="form" (ngSubmit)="save()" style="display:grid;grid-template-columns:1fr 1fr auto;gap:1rem;align-items:center">
+      <h2>Testes genéticos</h2>
+      <form [formGroup]="form" (ngSubmit)="save()" style="display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:1rem;align-items:center">
         <mat-form-field><mat-label>Gene</mat-label><input matInput formControlName="gene" placeholder="TSC1 ou TSC2" /></mat-form-field>
         <mat-form-field><mat-label>Data do teste</mat-label><input matInput type="date" formControlName="test_date" /></mat-form-field>
-        <button mat-flat-button color="primary">Salvar</button>
+        <mat-form-field><mat-label>Variante</mat-label><input matInput formControlName="variant" /></mat-form-field>
+        <mat-form-field><mat-label>Laboratório</mat-label><input matInput formControlName="lab_name" /></mat-form-field>
+        <mat-form-field style="grid-column:span 2"><mat-label>Observações</mat-label><input matInput formControlName="notes" /></mat-form-field>
+        <button mat-flat-button color="primary">{{ editingId ? 'Atualizar' : 'Salvar' }}</button>
       </form>
       <p *ngIf="form.errors?.['invalidGene']" style="color:#DC2626">Campo gene deve ser TSC1 ou TSC2</p>
 
       <table mat-table [dataSource]="items" class="full-width">
         <ng-container matColumnDef="gene"><th mat-header-cell *matHeaderCellDef>Gene</th><td mat-cell *matCellDef="let i">{{ i.gene }}</td></ng-container>
         <ng-container matColumnDef="test_date"><th mat-header-cell *matHeaderCellDef>Data</th><td mat-cell *matCellDef="let i">{{ i.test_date || '-' }}</td></ng-container>
+        <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Ações</th><td mat-cell *matCellDef="let i"><button mat-button (click)="startEdit(i)">Editar</button><button mat-button color="warn" (click)="remove(i)">Excluir</button></td></ng-container>
         <tr mat-header-row *matHeaderRowDef="columns"></tr>
         <tr mat-row *matRowDef="let row; columns: columns"></tr>
       </table>
@@ -41,7 +49,8 @@ export class GeneticTestsComponent {
 
   patientId = Number(this.route.snapshot.paramMap.get('id'));
   items: GeneticTest[] = [];
-  columns = ['gene', 'test_date'];
+  columns = ['gene', 'test_date', 'actions'];
+  editingId: number | null = null;
 
   form = this.fb.group(
     { gene: ['', Validators.required], test_date: [''], variant: [''], lab_name: [''], notes: [''] },
@@ -53,7 +62,17 @@ export class GeneticTestsComponent {
   }
 
   load(): void {
-    this.service.listByPatient(this.patientId).subscribe((data) => (this.items = data));
+    this.service.listByPatient(this.patientId).subscribe((data) => (this.items = unwrapResults(data)));
+  }
+
+  startEdit(item: GeneticTest): void {
+    this.editingId = item.test_id;
+    this.form.patchValue({ ...item });
+  }
+
+  remove(item: GeneticTest): void {
+    if (!window.confirm(`Excluir teste ${item.test_id}?`)) return;
+    this.service.delete(item.test_id).subscribe(() => this.load());
   }
 
   save(): void {
@@ -69,9 +88,17 @@ export class GeneticTestsComponent {
       notes: raw.notes ?? undefined
     };
 
-    this.service.create(this.patientId, payload).subscribe(() => {
+    const done = () => {
       this.form.reset({ gene: '', test_date: '', variant: '', lab_name: '', notes: '' });
+      this.editingId = null;
       this.load();
-    });
+    };
+
+    if (this.editingId) {
+      this.service.update(this.editingId, payload).subscribe(done);
+      return;
+    }
+
+    this.service.create(this.patientId, payload).subscribe(done);
   }
 }

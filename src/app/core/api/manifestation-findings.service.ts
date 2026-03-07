@@ -13,7 +13,7 @@ export class ManifestationFindingsService {
     return this.http.get<ManifestationFinding[]>(`${environment.apiBaseUrl}/manifestations/${manifestationId}/findings`);
   }
 
-  replace(manifestationId: number, findings: ManifestationFinding[]): Observable<void> {
+  replace(manifestationId: number, findings: Array<{ finding_code: string; is_present: boolean }>): Observable<void> {
     return this.http.put<void>(`${environment.apiBaseUrl}/manifestations/${manifestationId}/findings`, { findings });
   }
 }

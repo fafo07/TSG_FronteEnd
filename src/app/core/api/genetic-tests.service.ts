@@ -4,12 +4,13 @@ import { Observable } from 'rxjs';
 
 import { environment } from '../config/environment';
 import { GeneticTest } from '../../shared/models/models';
+import { PaginatedResponse } from '../../shared/models/pagination';
 
 @Injectable({ providedIn: 'root' })
 export class GeneticTestsService {
   private http = inject(HttpClient);
 
-  listByPatient(patientId: number): Observable<GeneticTest[]> {
+  listByPatient(patientId: number): Observable<PaginatedResponse<GeneticTest> | GeneticTest[]> {
     return this.http.get<GeneticTest[]>(`${environment.apiBaseUrl}/patients/${patientId}/genetic-tests`);
   }
 

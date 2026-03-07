@@ -4,12 +4,13 @@ import { Observable } from 'rxjs';
 
 import { environment } from '../config/environment';
 import { AdverseEvent } from '../../shared/models/models';
+import { PaginatedResponse } from '../../shared/models/pagination';
 
 @Injectable({ providedIn: 'root' })
 export class AdverseEventsService {
   private http = inject(HttpClient);
 
-  listByPatient(patientId: number): Observable<AdverseEvent[]> {
+  listByPatient(patientId: number): Observable<PaginatedResponse<AdverseEvent> | AdverseEvent[]> {
     return this.http.get<AdverseEvent[]>(`${environment.apiBaseUrl}/patients/${patientId}/adverse-events`);
   }
 

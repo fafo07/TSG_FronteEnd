@@ -4,12 +4,13 @@ import { Observable } from 'rxjs';
 
 import { environment } from '../config/environment';
 import { Manifestation } from '../../shared/models/models';
+import { PaginatedResponse } from '../../shared/models/pagination';
 
 @Injectable({ providedIn: 'root' })
 export class ManifestationsService {
   private http = inject(HttpClient);
 
-  listByPatient(patientId: number, system_code?: string, from?: string, to?: string): Observable<Manifestation[]> {
+  listByPatient(patientId: number, system_code?: string, from?: string, to?: string): Observable<PaginatedResponse<Manifestation> | Manifestation[]> {
     let params = new HttpParams();
     if (system_code) params = params.set('system_code', system_code);
     if (from) params = params.set('from', from);

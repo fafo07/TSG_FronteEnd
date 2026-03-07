@@ -97,3 +97,9 @@ export interface UserSession {
   username?: string;
   role?: string;
 }
+
+
+export interface AuthMeResponse {
+  username?: string;
+  role?: string;
+}

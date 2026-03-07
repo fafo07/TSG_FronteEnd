@@ -41,6 +41,9 @@ cd "C:\Users\D_Faf\OneDrive\Documentos\Proyecto angui Frontend\TSG_FronteEnd" &&
 - Protegidas:
   - `/dashboard`
   - `/patients`
+  - `/patients/new`
+  - `/patients/:id/edit`
+  - `/patients/:id/overview`
   - `/patients/:id`
   - `/patients/:id/genetic-tests`
   - `/patients/:id/manifestations`
@@ -49,7 +52,7 @@ cd "C:\Users\D_Faf\OneDrive\Documentos\Proyecto angui Frontend\TSG_FronteEnd" &&
   - `/patients/:id/treatments`
   - `/patients/:id/adverse-events`
   - `/patients/:id/contacts`
-  - `/catalogs`, `/catalogs/countries`, `/catalogs/systems`, `/catalogs/findings`
+  - `/catalogs/systems`, `/catalogs/findings`, `/catalogs/countries`
 
 ## O que já está implementado
 - Login JWT + refresh e bloqueio de rotas privadas.
