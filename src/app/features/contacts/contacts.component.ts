@@ -11,12 +11,25 @@ import { MatTableModule } from '@angular/material/table';
 
 import { ContactsService } from '../../core/api/contacts.service';
 import { Contact } from '../../shared/models/models';
+
 import { unwrapResults } from '../../shared/models/pagination';
 import { emailIfPresentValidator } from '../../shared/validators/domain.validators';
 import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
 import { ErrorStateComponent } from '../../shared/ui/error-state.component';
 import { LoadingStateComponent } from '../../shared/ui/loading-state.component';
 import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
+
+type PatientContactListItem = Contact | {
+  contact?: Contact;
+  contact_id?: number;
+  is_primary?: boolean;
+  full_name?: string;
+  relationship?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  notes?: string;
+};
 
 @Component({
   standalone: true,
@@ -85,7 +98,7 @@ export class ContactsComponent {
     this.error = false;
     this.service.listByPatient(this.patientId).subscribe({
       next: (data) => {
-        this.contacts = unwrapResults(data);
+        this.contacts = unwrapResults(data).map((item) => this.normalizeContact(item as PatientContactListItem));
         this.contacts.forEach((c) => {
           this.primaryByContactId[c.contact_id] = !!c.is_primary;
         });
@@ -121,6 +134,26 @@ export class ContactsComponent {
   unlink(contact: Contact): void {
     if (!window.confirm(`Remover vínculo de ${contact.full_name}?`)) return;
     this.service.unlink(this.patientId, contact.contact_id).subscribe(() => this.load());
+  }
+
+
+
+  private normalizeContact(item: PatientContactListItem): Contact {
+    const nested = 'contact' in item && item.contact ? item.contact : null;
+    if (nested) {
+      return { ...nested, is_primary: item.is_primary ?? nested.is_primary ?? false };
+    }
+
+    return {
+      contact_id: item.contact_id ?? 0,
+      full_name: item.full_name ?? '',
+      relationship: item.relationship ?? undefined,
+      phone: item.phone ?? undefined,
+      email: item.email ?? undefined,
+      address: item.address ?? undefined,
+      notes: item.notes ?? undefined,
+      is_primary: item.is_primary ?? false
+    };
   }
 
   save(): void {
