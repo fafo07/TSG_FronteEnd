@@ -1,0 +1,62 @@
+@use '@angular/material' as mat;
+
+@include mat.core();
+
+$primary: mat.define-palette(mat.$blue-palette, 600);
+$accent: mat.define-palette(mat.$indigo-palette, 600);
+$warn: mat.define-palette(mat.$red-palette, 600);
+
+$theme: mat.define-light-theme((
+  color: (
+    primary: $primary,
+    accent: $accent,
+    warn: $warn
+  )
+));
+
+@include mat.all-component-themes($theme);
+
+:root {
+  --bg: #F8FAFC;
+  --card: #FFFFFF;
+  --text: #0F172A;
+  --muted: #64748B;
+  --border: #E2E8F0;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; font-family: Inter, sans-serif; background: var(--bg); color: var(--text); }
+h1,h2,h3 { font-family: Poppins, Inter, sans-serif; letter-spacing: .1px; }
+
+.page-card { background: var(--card); border-radius: 12px; padding: 1rem; box-shadow: 0 2px 10px rgba(15,23,42,.08); border: 1px solid var(--border); }
+.full-width { width: 100%; }
+
+.app-sidebar {
+  width: 260px;
+  background: #0B1220;
+  color: #E2E8F0;
+  padding-top: .5rem;
+  border-right: 1px solid rgba(148,163,184,.2);
+}
+.app-brand { padding: 1rem; margin: 0; color: #F8FAFC; font-weight: 600; }
+.menu-group-title { padding: .5rem 1rem .25rem; font-size: .8rem; opacity: .8; text-transform: uppercase; letter-spacing: .06em; }
+.mat-mdc-list-item.is-active { background: rgba(59,130,246,.18); border-left: 3px solid #60A5FA; }
+.mat-mdc-list-item { color: #E2E8F0 !important; }
+.mat-mdc-list-item:hover { background: rgba(148,163,184,.14); }
+
+.app-topbar { display:flex; justify-content:space-between; min-height: 64px; }
+
+button[mat-button], button[mat-stroked-button], button[mat-flat-button] {
+  border-radius: 10px !important;
+  font-weight: 600;
+}
+button[mat-stroked-button] { border-color: #CBD5E1 !important; }
+button[mat-stroked-button]:hover { background: #F1F5F9; }
+button[mat-flat-button][color='warn'] { background: #DC2626 !important; color: white !important; }
+
+a.table-action { font-weight: 600; color: #2563EB; text-decoration: none; }
+a.table-action:hover { text-decoration: underline; }
+
+@media (max-width: 900px) {
+  .page-card { padding: .85rem; }
+}
