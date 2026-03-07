@@ -29,5 +29,17 @@
     "@angular/cli": "^17.3.0",
     "@angular/compiler-cli": "^17.3.0",
     "typescript": "^5.4.0"
-  }
+  },
+  "description": "Frontend Angular 17+ (standalone) para registro/gestão de pacientes com Esclerose Tuberosa (TSC), com autenticação JWT, interceptor de token, refresh e rotas protegidas.",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fafo07/TSG_FronteEnd.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/fafo07/TSG_FronteEnd/issues"
+  },
+  "homepage": "https://github.com/fafo07/TSG_FronteEnd#readme"
 }

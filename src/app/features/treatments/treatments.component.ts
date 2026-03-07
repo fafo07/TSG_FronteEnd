@@ -12,7 +12,7 @@ import { MatTableModule } from '@angular/material/table';
 import { TreatmentsService } from '../../core/api/treatments.service';
 import { ManifestationsService } from '../../core/api/manifestations.service';
 import { Manifestation, Treatment } from '../../shared/models/models';
-import { dateRangeValidator } from '../../shared/validators/date-range.validator';
+import { endDateAfterStartDate } from '../../shared/validators/date-range.validator';
 import { unwrapResults } from '../../shared/models/pagination';
 import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
 import { ErrorStateComponent } from '../../shared/ui/error-state.component';
@@ -80,7 +80,7 @@ export class TreatmentsComponent {
       status: ['ACTIVE'],
       notes: ['']
     },
-    { validators: [dateRangeValidator('start_date', 'end_date')] }
+    { validators: [endDateAfterStartDate('start_date', 'end_date')] }
   );
 
   constructor() {
