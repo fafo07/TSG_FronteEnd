@@ -13,32 +13,40 @@ import { ContactsService } from '../../core/api/contacts.service';
 import { Contact } from '../../shared/models/models';
 import { unwrapResults } from '../../shared/models/pagination';
 import { emailIfPresentValidator } from '../../shared/validators/domain.validators';
+import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
+import { ErrorStateComponent } from '../../shared/ui/error-state.component';
+import { LoadingStateComponent } from '../../shared/ui/loading-state.component';
 import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, MatCardModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatCheckboxModule, MatTableModule, PatientTabsComponent],
+  imports: [CommonModule, ReactiveFormsModule, MatCardModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatCheckboxModule, MatTableModule, PatientTabsComponent, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent],
   template: `
     <app-patient-tabs [patientId]="patientId" />
 
     <mat-card class="page-card">
       <h2>Contatos</h2>
-      <form [formGroup]="form" (ngSubmit)="create()" style="display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:1rem;align-items:center">
+      <form [formGroup]="form" (ngSubmit)="save()" style="display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:1rem;align-items:center">
         <mat-form-field><mat-label>Nome completo</mat-label><input matInput formControlName="full_name" /></mat-form-field>
         <mat-form-field><mat-label>Telefone</mat-label><input matInput formControlName="phone" /></mat-form-field>
         <mat-form-field><mat-label>E-mail</mat-label><input matInput formControlName="email" /></mat-form-field>
         <mat-form-field><mat-label>Relação</mat-label><input matInput formControlName="relationship" /></mat-form-field>
         <mat-form-field><mat-label>Endereço</mat-label><input matInput formControlName="address" /></mat-form-field>
         <mat-checkbox formControlName="is_primary">Principal</mat-checkbox>
-        <button mat-flat-button color="primary">Salvar e vincular</button>
+        <button mat-flat-button color="primary">{{ editingContactId ? 'Atualizar contato' : 'Salvar e vincular' }}</button>
       </form>
       <p *ngIf="form.get('email')?.errors?.['invalidEmail']" style="color:#DC2626">E-mail inválido</p>
 
-      <table mat-table [dataSource]="contacts" class="full-width" style="margin-top:1rem">
+      <app-loading-state *ngIf="loading" />
+      <app-error-state *ngIf="error" message="Erro ao carregar contatos" (retry)="load()" />
+      <app-empty-state *ngIf="!loading && !error && !contacts.length" message="Nenhum contato vinculado" />
+
+      <table *ngIf="!loading && !error && contacts.length" mat-table [dataSource]="contacts" class="full-width" style="margin-top:1rem">
         <ng-container matColumnDef="full_name"><th mat-header-cell *matHeaderCellDef>Nome</th><td mat-cell *matCellDef="let item">{{ item.full_name }}</td></ng-container>
         <ng-container matColumnDef="email"><th mat-header-cell *matHeaderCellDef>E-mail</th><td mat-cell *matCellDef="let item">{{ item.email || '-' }}</td></ng-container>
         <ng-container matColumnDef="phone"><th mat-header-cell *matHeaderCellDef>Telefone</th><td mat-cell *matCellDef="let item">{{ item.phone || '-' }}</td></ng-container>
-        <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Ações</th><td mat-cell *matCellDef="let item"><button mat-button (click)="togglePrimary(item)">Alternar principal</button><button mat-button color="warn" (click)="unlink(item)">Remover vínculo</button></td></ng-container>
+        <ng-container matColumnDef="primary"><th mat-header-cell *matHeaderCellDef>Principal</th><td mat-cell *matCellDef="let item">{{ primaryByContactId[item.contact_id] ? 'Sim' : 'Não' }}</td></ng-container>
+        <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Ações</th><td mat-cell *matCellDef="let item"><button mat-button (click)="edit(item)">Editar</button><button mat-button (click)="togglePrimary(item)">Alternar principal</button><button mat-button color="warn" (click)="unlink(item)">Remover vínculo</button></td></ng-container>
         <tr mat-header-row *matHeaderRowDef="columns"></tr>
         <tr mat-row *matRowDef="let row; columns: columns"></tr>
       </table>
@@ -53,7 +61,10 @@ export class ContactsComponent {
   patientId = Number(this.route.snapshot.paramMap.get('id'));
   contacts: Contact[] = [];
   primaryByContactId: Record<number, boolean> = {};
-  columns = ['full_name', 'email', 'phone', 'actions'];
+  columns = ['full_name', 'email', 'phone', 'primary', 'actions'];
+  editingContactId: number | null = null;
+  loading = false;
+  error = false;
 
   form = this.fb.group({
     full_name: ['', Validators.required],
@@ -70,11 +81,33 @@ export class ContactsComponent {
   }
 
   load(): void {
-    this.service.listByPatient(this.patientId).subscribe((data) => {
-      this.contacts = unwrapResults(data);
-      this.contacts.forEach((c) => {
-        this.primaryByContactId[c.contact_id] = !!c.is_primary;
-      });
+    this.loading = true;
+    this.error = false;
+    this.service.listByPatient(this.patientId).subscribe({
+      next: (data) => {
+        this.contacts = unwrapResults(data);
+        this.contacts.forEach((c) => {
+          this.primaryByContactId[c.contact_id] = !!c.is_primary;
+        });
+        this.loading = false;
+      },
+      error: () => {
+        this.error = true;
+        this.loading = false;
+      }
+    });
+  }
+
+  edit(contact: Contact): void {
+    this.editingContactId = contact.contact_id;
+    this.form.patchValue({
+      full_name: contact.full_name ?? '',
+      relationship: contact.relationship ?? '',
+      phone: contact.phone ?? '',
+      email: contact.email ?? '',
+      address: contact.address ?? '',
+      notes: contact.notes ?? '',
+      is_primary: !!this.primaryByContactId[contact.contact_id]
     });
   }
 
@@ -90,7 +123,7 @@ export class ContactsComponent {
     this.service.unlink(this.patientId, contact.contact_id).subscribe(() => this.load());
   }
 
-  create(): void {
+  save(): void {
     if (this.form.invalid) return;
 
     const { is_primary, ...rawPayload } = this.form.getRawValue();
@@ -103,12 +136,21 @@ export class ContactsComponent {
       notes: rawPayload.notes ?? undefined
     };
 
-    this.service.create(contactPayload).subscribe((contact) => {
-      this.service.link(this.patientId, contact.contact_id, Boolean(is_primary)).subscribe(() => {
-        this.primaryByContactId[contact.contact_id] = Boolean(is_primary);
-        this.form.reset({ full_name: '', relationship: '', phone: '', email: '', address: '', notes: '', is_primary: false });
-        this.load();
+    const done = () => {
+      this.form.reset({ full_name: '', relationship: '', phone: '', email: '', address: '', notes: '', is_primary: false });
+      this.editingContactId = null;
+      this.load();
+    };
+
+    if (this.editingContactId) {
+      this.service.update(this.editingContactId, contactPayload).subscribe(() => {
+        this.service.updateLink(this.patientId, this.editingContactId!, Boolean(is_primary)).subscribe(done);
       });
+      return;
+    }
+
+    this.service.create(contactPayload).subscribe((contact) => {
+      this.service.link(this.patientId, contact.contact_id, Boolean(is_primary)).subscribe(done);
     });
   }
 }

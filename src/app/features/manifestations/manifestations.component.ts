@@ -14,10 +14,13 @@ import { SystemsService } from '../../core/api/catalogs.service';
 import { Manifestation, System } from '../../shared/models/models';
 import { unwrapResults } from '../../shared/models/pagination';
 import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
+import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
+import { ErrorStateComponent } from '../../shared/ui/error-state.component';
+import { LoadingStateComponent } from '../../shared/ui/loading-state.component';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, MatCardModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule, MatSelectModule, PatientTabsComponent],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, MatCardModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule, MatSelectModule, PatientTabsComponent, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent],
   template: `
     <app-patient-tabs [patientId]="patientId" />
 
@@ -31,7 +34,12 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
         <button mat-flat-button color="primary" [disabled]="form.invalid">{{ editingId ? 'Atualizar' : 'Salvar' }}</button>
       </form>
 
-      <table mat-table [dataSource]="items" class="full-width" style="margin-top:1rem">
+
+      <app-loading-state *ngIf="loading" />
+      <app-error-state *ngIf="error" message="Erro ao carregar manifestações" (retry)="load()" />
+      <app-empty-state *ngIf="!loading && !error && !items.length" message="Nenhuma manifestação cadastrada" />
+
+      <table *ngIf="!loading && !error && items.length" mat-table [dataSource]="items" class="full-width" style="margin-top:1rem">
         <ng-container matColumnDef="evaluation_date"><th mat-header-cell *matHeaderCellDef>Data</th><td mat-cell *matCellDef="let m">{{ m.evaluation_date || '-' }}</td></ng-container>
         <ng-container matColumnDef="system_code"><th mat-header-cell *matHeaderCellDef>Sistema</th><td mat-cell *matCellDef="let m">{{ m.system_code }}</td></ng-container>
         <ng-container matColumnDef="notes"><th mat-header-cell *matHeaderCellDef>Observações</th><td mat-cell *matCellDef="let m">{{ m.notes || '-' }}</td></ng-container>
@@ -52,6 +60,8 @@ export class ManifestationsComponent {
   systems: System[] = [];
   columns = ['evaluation_date', 'system_code', 'notes', 'actions'];
   editingId: number | null = null;
+  loading = false;
+  error = false;
 
   form = this.fb.group({
     evaluation_date: ['', Validators.required],
@@ -65,7 +75,18 @@ export class ManifestationsComponent {
   }
 
   load(): void {
-    this.service.listByPatient(this.patientId).subscribe((data) => (this.items = unwrapResults(data)));
+    this.loading = true;
+    this.error = false;
+    this.service.listByPatient(this.patientId).subscribe({
+      next: (data) => {
+        this.items = unwrapResults(data);
+        this.loading = false;
+      },
+      error: () => {
+        this.error = true;
+        this.loading = false;
+      }
+    });
   }
 
   edit(item: Manifestation): void {

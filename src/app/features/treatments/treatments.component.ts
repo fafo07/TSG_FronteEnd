@@ -14,11 +14,14 @@ import { ManifestationsService } from '../../core/api/manifestations.service';
 import { Manifestation, Treatment } from '../../shared/models/models';
 import { dateRangeValidator } from '../../shared/validators/date-range.validator';
 import { unwrapResults } from '../../shared/models/pagination';
+import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
+import { ErrorStateComponent } from '../../shared/ui/error-state.component';
+import { LoadingStateComponent } from '../../shared/ui/loading-state.component';
 import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, MatCardModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule, MatSelectModule, PatientTabsComponent],
+  imports: [CommonModule, ReactiveFormsModule, MatCardModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule, MatSelectModule, PatientTabsComponent, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent],
   template: `
     <app-patient-tabs [patientId]="patientId" />
 
@@ -38,7 +41,11 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
 
       <p *ngIf="form.errors?.['invalidDateRange']" style="color:#DC2626">A data de fim deve ser maior ou igual à data de início</p>
 
-      <table mat-table [dataSource]="items" class="full-width" style="margin-top:1rem">
+      <app-loading-state *ngIf="loading" />
+      <app-error-state *ngIf="error" message="Erro ao carregar tratamentos" (retry)="load()" />
+      <app-empty-state *ngIf="!loading && !error && !items.length" message="Nenhum tratamento cadastrado" />
+
+      <table *ngIf="!loading && !error && items.length" mat-table [dataSource]="items" class="full-width" style="margin-top:1rem">
         <ng-container matColumnDef="medication"><th mat-header-cell *matHeaderCellDef>Medicação</th><td mat-cell *matCellDef="let t">{{ t.medication }}</td></ng-container>
         <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>Status</th><td mat-cell *matCellDef="let t">{{ t.status || '-' }}</td></ng-container>
         <ng-container matColumnDef="manifestation_id"><th mat-header-cell *matHeaderCellDef>Manifestação</th><td mat-cell *matCellDef="let t">{{ t.manifestation_id }}</td></ng-container>
@@ -59,6 +66,8 @@ export class TreatmentsComponent {
   manifestations: Manifestation[] = [];
   columns = ['medication', 'status', 'manifestation_id', 'actions'];
   editingId: number | null = null;
+  loading = false;
+  error = false;
 
   form = this.fb.group(
     {
@@ -80,7 +89,18 @@ export class TreatmentsComponent {
   }
 
   load(): void {
-    this.service.listByPatient(this.patientId).subscribe((data) => (this.items = unwrapResults(data)));
+    this.loading = true;
+    this.error = false;
+    this.service.listByPatient(this.patientId).subscribe({
+      next: (data) => {
+        this.items = unwrapResults(data);
+        this.loading = false;
+      },
+      error: () => {
+        this.error = true;
+        this.loading = false;
+      }
+    });
   }
 
   startEdit(item: Treatment): void {
@@ -96,9 +116,18 @@ export class TreatmentsComponent {
   save(): void {
     if (this.form.invalid) return;
     const raw = this.form.getRawValue();
-    if (!raw.manifestation_id) return;
-    const payload = {
+    if (!raw.manifestation_id && !this.editingId) return;
+    const createPayload = {
       manifestation_id: Number(raw.manifestation_id),
+      medication: raw.medication ?? undefined,
+      dose: raw.dose ?? undefined,
+      indication: raw.indication ?? undefined,
+      start_date: raw.start_date ?? undefined,
+      end_date: raw.end_date ?? undefined,
+      status: raw.status ?? undefined,
+      notes: raw.notes ?? undefined
+    };
+    const updatePayload = {
       medication: raw.medication ?? undefined,
       dose: raw.dose ?? undefined,
       indication: raw.indication ?? undefined,
@@ -115,10 +144,10 @@ export class TreatmentsComponent {
     };
 
     if (this.editingId) {
-      this.service.update(this.editingId, payload).subscribe(done);
+      this.service.update(this.editingId, updatePayload).subscribe(done);
       return;
     }
 
-    this.service.create(this.patientId, Number(raw.manifestation_id), payload).subscribe(done);
+    this.service.create(this.patientId, Number(raw.manifestation_id), createPayload).subscribe(done);
   }
 }

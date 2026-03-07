@@ -12,11 +12,14 @@ import { GeneticTestsService } from '../../core/api/genetic-tests.service';
 import { GeneticTest } from '../../shared/models/models';
 import { unwrapResults } from '../../shared/models/pagination';
 import { geneValidator } from '../../shared/validators/domain.validators';
+import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
+import { ErrorStateComponent } from '../../shared/ui/error-state.component';
+import { LoadingStateComponent } from '../../shared/ui/loading-state.component';
 import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, MatCardModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule, PatientTabsComponent],
+  imports: [CommonModule, ReactiveFormsModule, MatCardModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule, PatientTabsComponent, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent],
   template: `
     <app-patient-tabs [patientId]="patientId" />
 
@@ -32,7 +35,11 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
       </form>
       <p *ngIf="form.errors?.['invalidGene']" style="color:#DC2626">Campo gene deve ser TSC1 ou TSC2</p>
 
-      <table mat-table [dataSource]="items" class="full-width">
+      <app-loading-state *ngIf="loading" />
+      <app-error-state *ngIf="error" message="Erro ao carregar testes genéticos" (retry)="load()" />
+      <app-empty-state *ngIf="!loading && !error && !items.length" message="Nenhum teste genético cadastrado" />
+
+      <table *ngIf="!loading && !error && items.length" mat-table [dataSource]="items" class="full-width">
         <ng-container matColumnDef="gene"><th mat-header-cell *matHeaderCellDef>Gene</th><td mat-cell *matCellDef="let i">{{ i.gene }}</td></ng-container>
         <ng-container matColumnDef="test_date"><th mat-header-cell *matHeaderCellDef>Data</th><td mat-cell *matCellDef="let i">{{ i.test_date || '-' }}</td></ng-container>
         <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Ações</th><td mat-cell *matCellDef="let i"><button mat-button (click)="startEdit(i)">Editar</button><button mat-button color="warn" (click)="remove(i)">Excluir</button></td></ng-container>
@@ -51,6 +58,8 @@ export class GeneticTestsComponent {
   items: GeneticTest[] = [];
   columns = ['gene', 'test_date', 'actions'];
   editingId: number | null = null;
+  loading = false;
+  error = false;
 
   form = this.fb.group(
     { gene: ['', Validators.required], test_date: [''], variant: [''], lab_name: [''], notes: [''] },
@@ -62,7 +71,18 @@ export class GeneticTestsComponent {
   }
 
   load(): void {
-    this.service.listByPatient(this.patientId).subscribe((data) => (this.items = unwrapResults(data)));
+    this.loading = true;
+    this.error = false;
+    this.service.listByPatient(this.patientId).subscribe({
+      next: (data) => {
+        this.items = unwrapResults(data);
+        this.loading = false;
+      },
+      error: () => {
+        this.error = true;
+        this.loading = false;
+      }
+    });
   }
 
   startEdit(item: GeneticTest): void {

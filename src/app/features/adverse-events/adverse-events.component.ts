@@ -13,11 +13,14 @@ import { AdverseEventsService } from '../../core/api/adverse-events.service';
 import { TreatmentsService } from '../../core/api/treatments.service';
 import { AdverseEvent, Treatment } from '../../shared/models/models';
 import { unwrapResults } from '../../shared/models/pagination';
+import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
+import { ErrorStateComponent } from '../../shared/ui/error-state.component';
+import { LoadingStateComponent } from '../../shared/ui/loading-state.component';
 import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, MatCardModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatButtonModule, MatTableModule, PatientTabsComponent],
+  imports: [CommonModule, ReactiveFormsModule, MatCardModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatButtonModule, MatTableModule, PatientTabsComponent, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent],
   template: `
     <app-patient-tabs [patientId]="patientId" />
 
@@ -33,7 +36,11 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
         <button mat-flat-button color="primary" [disabled]="form.invalid">{{ editingId ? 'Atualizar' : 'Salvar' }}</button>
       </form>
 
-      <table mat-table [dataSource]="items" class="full-width" style="margin-top:1rem">
+      <app-loading-state *ngIf="loading" />
+      <app-error-state *ngIf="error" message="Erro ao carregar eventos adversos" (retry)="load()" />
+      <app-empty-state *ngIf="!loading && !error && !items.length" message="Nenhum evento adverso cadastrado" />
+
+      <table *ngIf="!loading && !error && items.length" mat-table [dataSource]="items" class="full-width" style="margin-top:1rem">
         <ng-container matColumnDef="event_name"><th mat-header-cell *matHeaderCellDef>Evento</th><td mat-cell *matCellDef="let item">{{ item.event_name }}</td></ng-container>
         <ng-container matColumnDef="event_date"><th mat-header-cell *matHeaderCellDef>Data</th><td mat-cell *matCellDef="let item">{{ item.event_date }}</td></ng-container>
         <ng-container matColumnDef="treatment_id"><th mat-header-cell *matHeaderCellDef>Tratamento</th><td mat-cell *matCellDef="let item">{{ item.treatment_id || '-' }}</td></ng-container>
@@ -55,6 +62,8 @@ export class AdverseEventsComponent {
   treatments: Treatment[] = [];
   columns = ['event_name', 'event_date', 'treatment_id', 'actions'];
   editingId: number | null = null;
+  loading = false;
+  error = false;
 
   form = this.fb.group({
     event_name: ['', Validators.required],
@@ -71,7 +80,18 @@ export class AdverseEventsComponent {
   }
 
   load(): void {
-    this.service.listByPatient(this.patientId).subscribe((data) => (this.items = unwrapResults(data)));
+    this.loading = true;
+    this.error = false;
+    this.service.listByPatient(this.patientId).subscribe({
+      next: (data) => {
+        this.items = unwrapResults(data);
+        this.loading = false;
+      },
+      error: () => {
+        this.error = true;
+        this.loading = false;
+      }
+    });
   }
 
   startEdit(item: AdverseEvent): void {

@@ -292,7 +292,7 @@ export class CatalogsComponent {
   saveFinding(): void {
     if (this.findingForm.invalid) return;
     const raw = this.findingForm.getRawValue();
-    const payload = {
+    const createPayload = {
       finding_code: raw.finding_code!,
       finding_name: raw.finding_name!,
       system_code: raw.system_code!,
@@ -300,8 +300,15 @@ export class CatalogsComponent {
       is_active: !!raw.is_active
     };
 
+    const updatePayload = {
+      finding_name: raw.finding_name!,
+      system_code: raw.system_code!,
+      description: raw.description ?? undefined,
+      is_active: !!raw.is_active
+    };
+
     if (this.editingFindingCode) {
-      this.findingsService.update(this.editingFindingCode, payload).subscribe(() => {
+      this.findingsService.update(this.editingFindingCode, updatePayload).subscribe(() => {
         this.editingFindingCode = null;
         this.findingForm.reset({ finding_code: '', system_code: '', finding_name: '', description: '', is_active: true });
         this.load('findings', this.page);
@@ -309,7 +316,7 @@ export class CatalogsComponent {
       return;
     }
 
-    this.findingsService.create(payload).subscribe(() => {
+    this.findingsService.create(createPayload).subscribe(() => {
       this.findingForm.reset({ finding_code: '', system_code: '', finding_name: '', description: '', is_active: true });
       this.load('findings', this.page);
     });
