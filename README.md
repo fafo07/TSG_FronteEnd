@@ -20,14 +20,20 @@ npm install
 Defina a URL base em `src/app/core/config/environment.ts`:
 
 ```ts
-apiBaseUrl: '/api'
+apiBaseUrl: 'http://127.0.0.1:8000/api/v1'
 ```
 
-> O projeto usa proxy de desenvolvimento (`proxy.conf.json`) para redirecionar `/api` para `http://localhost:8080`, evitando erro de CORS no login local.
+> A aplicação usa URL absoluta da API no `environment.ts` (sem depender de proxy no login).
 
 ## Executar
 ```bash
 npm start
+```
+
+No Windows (CMD):
+
+```bat
+cd "C:\Users\D_Faf\OneDrive\Documentos\Proyecto angui Frontend\TSG_FronteEnd" && git pull --rebase && npm install && npm start
 ```
 
 ## Rotas
