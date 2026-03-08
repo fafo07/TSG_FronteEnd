@@ -11,9 +11,11 @@ import { MatNativeDateModule } from '@angular/material/core';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
 
+import { FindingsCatalogService } from '../../core/api/findings-catalog.service';
+import { ManifestationFindingsService } from '../../core/api/manifestation-findings.service';
 import { TreatmentsService } from '../../core/api/treatments.service';
 import { ManifestationsService } from '../../core/api/manifestations.service';
-import { Manifestation, Treatment } from '../../shared/models/models';
+import { FindingCatalog, Manifestation, Treatment } from '../../shared/models/models';
 import { dateRangeValidator } from '../../shared/validators/date-range.validator';
 import { unwrapResults } from '../../shared/models/pagination';
 import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
@@ -29,9 +31,20 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
 
     <mat-card class="page-card">
       <h2>Treatments</h2>
+      <p style="margin-top:-.25rem;color:#475569">Patient #{{ patientId }} · Treatments must be created from a manifestation context.</p>
+
+      <div *ngIf="selectedManifestationId; else noManifestationContext" style="margin:.5rem 0 1rem;padding:.6rem .75rem;border-radius:.5rem;background:#EFF6FF;color:#1E3A8A;display:inline-block">
+        Creating treatment for manifestation: {{ manifestationLabel(selectedManifestationId) }}
+      </div>
+      <ng-template #noManifestationContext>
+        <p style="margin:.5rem 0 1rem;padding:.6rem .75rem;border-radius:.5rem;background:#F8FAFC;color:#334155;display:inline-block">Open this page from Manifestations using "Add treatment" to create a new record.</p>
+      </ng-template>
+
       <form [formGroup]="form" (ngSubmit)="save()" class="form-grid form-grid-3">
-        <mat-form-field class="form-span-2"><mat-label>Manifestation</mat-label><mat-select formControlName="manifestation_id"><mat-option *ngFor="let m of manifestations" [value]="m.manifestation_id">{{ m.system || m.system_code }} · Evaluation {{ m.evaluation_date }}</mat-option></mat-select></mat-form-field>
-        <mat-form-field><mat-label>Medication</mat-label><input matInput formControlName="medication" /></mat-form-field>
+        <mat-form-field>
+          <mat-label>Medication</mat-label>
+          <input matInput formControlName="medication" />
+        </mat-form-field>
         <mat-form-field><mat-label>Dose</mat-label><input matInput formControlName="dose" /></mat-form-field>
         <mat-form-field><mat-label>Indication</mat-label><input matInput formControlName="indication" /></mat-form-field>
 
@@ -49,9 +62,16 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
           <mat-datepicker #endPicker></mat-datepicker>
         </mat-form-field>
 
-        <mat-form-field><mat-label>Status</mat-label><mat-select formControlName="status"><mat-option value="ACTIVE">ACTIVE</mat-option><mat-option value="INACTIVE">INACTIVE</mat-option></mat-select></mat-form-field>
+        <mat-form-field>
+          <mat-label>Status</mat-label>
+          <mat-select formControlName="status">
+            <mat-option value="ACTIVE">ACTIVE</mat-option>
+            <mat-option value="INACTIVE">INACTIVE</mat-option>
+          </mat-select>
+        </mat-form-field>
+
         <mat-form-field class="notes-field"><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="notes"></textarea></mat-form-field>
-        <button mat-flat-button color="primary" [disabled]="form.invalid">{{ editingId ? 'Update' : 'Save' }}</button>
+        <button mat-flat-button color="primary" [disabled]="form.invalid || (!selectedManifestationId && !editingId)">{{ editingId ? 'Update' : 'Save' }}</button>
       </form>
 
       <p *ngIf="form.errors?.['invalidDateRange']" style="color:#DC2626">End date must be greater than or equal to start date</p>
@@ -64,7 +84,8 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
       <table *ngIf="!loading && !error && items.length" mat-table [dataSource]="items" class="full-width" style="margin-top:1rem">
         <ng-container matColumnDef="medication"><th mat-header-cell *matHeaderCellDef>Medication</th><td mat-cell *matCellDef="let t">{{ t.medication }}</td></ng-container>
         <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>Status</th><td mat-cell *matCellDef="let t">{{ t.status || '-' }}</td></ng-container>
-        <ng-container matColumnDef="manifestation_id"><th mat-header-cell *matHeaderCellDef>Manifestation</th><td mat-cell *matCellDef="let t">{{ manifestationLabel(t.manifestation_id) }}</td></ng-container>
+        <ng-container matColumnDef="manifestation"><th mat-header-cell *matHeaderCellDef>Manifestation</th><td mat-cell *matCellDef="let t">{{ manifestationLabel(t.manifestation_id) }}</td></ng-container>
+        <ng-container matColumnDef="finding"><th mat-header-cell *matHeaderCellDef>Finding</th><td mat-cell *matCellDef="let t">{{ findingLabel(t.manifestation_id) }}</td></ng-container>
         <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Actions</th><td mat-cell *matCellDef="let t"><button mat-button (click)="startEdit(t)">Edit</button><button mat-button color="warn" (click)="remove(t)">Delete</button></td></ng-container>
         <tr mat-header-row *matHeaderRowDef="columns"></tr><tr mat-row *matRowDef="let row; columns: columns"></tr>
       </table>
@@ -77,18 +98,22 @@ export class TreatmentsComponent {
   private route = inject(ActivatedRoute);
   private service = inject(TreatmentsService);
   private manifestationsService = inject(ManifestationsService);
+  private manifestationFindingsService = inject(ManifestationFindingsService);
+  private findingsCatalogService = inject(FindingsCatalogService);
 
   patientId = Number(this.route.snapshot.paramMap.get('id'));
+  selectedManifestationId = Number(this.route.snapshot.queryParamMap.get('manifestationId')) || null;
   items: Treatment[] = [];
   manifestations: Manifestation[] = [];
-  columns = ['medication', 'status', 'manifestation_id', 'actions'];
+  findingsCatalogByCode: Record<string, FindingCatalog> = {};
+  findingLabelByManifestationId: Record<number, string> = {};
+  columns = ['medication', 'status', 'manifestation', 'finding', 'actions'];
   editingId: number | null = null;
   loading = false;
   error = false;
 
   form = this.fb.group(
     {
-      manifestation_id: [null as number | null, Validators.required],
       medication: ['', Validators.required],
       dose: [''],
       indication: [''],
@@ -101,7 +126,16 @@ export class TreatmentsComponent {
   );
 
   constructor() {
-    this.manifestationsService.listByPatient(this.patientId).subscribe((data) => (this.manifestations = unwrapResults(data)));
+    this.findingsCatalogService.list(1).subscribe((response) => {
+      response.results.forEach((finding) => {
+        this.findingsCatalogByCode[finding.finding_code] = finding;
+      });
+    });
+
+    this.manifestationsService.listByPatient(this.patientId).subscribe((data) => {
+      this.manifestations = unwrapResults(data);
+      this.loadFindingsContext();
+    });
     this.load();
   }
 
@@ -125,8 +159,13 @@ export class TreatmentsComponent {
     return manifestation ? `${manifestation.system || manifestation.system_code} · ${manifestation.evaluation_date}` : `#${id}`;
   }
 
+  findingLabel(manifestationId: number): string {
+    return this.findingLabelByManifestationId[manifestationId] ?? '-';
+  }
+
   startEdit(item: Treatment): void {
     this.editingId = item.treatment_id;
+    this.selectedManifestationId = item.manifestation_id;
     this.form.patchValue({ ...item, start_date: this.parseDate(item.start_date), end_date: this.parseDate(item.end_date) });
   }
 
@@ -138,18 +177,9 @@ export class TreatmentsComponent {
   save(): void {
     if (this.form.invalid) return;
     const raw = this.form.getRawValue();
-    if (!raw.manifestation_id && !this.editingId) return;
-    const createPayload = {
-      manifestation_id: Number(raw.manifestation_id),
-      medication: raw.medication ?? undefined,
-      dose: raw.dose ?? undefined,
-      indication: raw.indication ?? undefined,
-      start_date: this.formatDate(raw.start_date),
-      end_date: this.formatDate(raw.end_date),
-      status: raw.status ?? undefined,
-      notes: raw.notes ?? undefined
-    };
-    const updatePayload = {
+    if (!this.selectedManifestationId && !this.editingId) return;
+
+    const payload = {
       medication: raw.medication ?? undefined,
       dose: raw.dose ?? undefined,
       indication: raw.indication ?? undefined,
@@ -160,17 +190,32 @@ export class TreatmentsComponent {
     };
 
     const done = () => {
-      this.form.reset({ manifestation_id: null, medication: '', dose: '', indication: '', start_date: null, end_date: null, status: 'ACTIVE', notes: '' });
+      this.form.reset({ medication: '', dose: '', indication: '', start_date: null, end_date: null, status: 'ACTIVE', notes: '' });
       this.editingId = null;
       this.load();
     };
 
     if (this.editingId) {
-      this.service.update(this.editingId, updatePayload).subscribe(done);
+      this.service.update(this.editingId, payload).subscribe(done);
       return;
     }
 
-    this.service.create(this.patientId, Number(raw.manifestation_id), createPayload).subscribe(done);
+    this.service.create(this.patientId, Number(this.selectedManifestationId), payload).subscribe(done);
+  }
+
+  private loadFindingsContext(): void {
+    this.findingLabelByManifestationId = {};
+    this.manifestations.forEach((manifestation) => {
+      this.manifestationFindingsService.get(manifestation.manifestation_id).subscribe((findings) => {
+        const selected = findings.find((f) => f.is_present);
+        if (!selected) {
+          this.findingLabelByManifestationId[manifestation.manifestation_id] = '-';
+          return;
+        }
+        const catalog = this.findingsCatalogByCode[selected.finding_code];
+        this.findingLabelByManifestationId[manifestation.manifestation_id] = catalog ? `${catalog.finding_name} (${selected.finding_code})` : selected.finding_code;
+      });
+    });
   }
 
   private formatDate(value: Date | null | undefined): string | undefined {

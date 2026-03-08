@@ -159,3 +159,20 @@ a.table-action:hover { text-decoration: underline; }
   color: #334155;
   font-weight: 700;
 }
+
+.status-badge {
+  display: inline-block;
+  padding: .2rem .55rem;
+  border-radius: 999px;
+  border: 1px solid #CBD5E1;
+  color: #334155;
+  background: #F8FAFC;
+  font-size: .78rem;
+  font-weight: 600;
+}
+
+.status-badge-active {
+  border-color: #93C5FD;
+  color: #1E3A8A;
+  background: #DBEAFE;
+}

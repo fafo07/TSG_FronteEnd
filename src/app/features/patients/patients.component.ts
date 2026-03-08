@@ -8,6 +8,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatTableModule } from '@angular/material/table';
 
+import { CountriesService } from '../../core/api/catalogs.service';
 import { PatientsService } from '../../core/api/patients.service';
 import { Patient } from '../../shared/models/models';
 import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
@@ -39,7 +40,7 @@ import { PageHeaderComponent } from '../../shared/ui/page-header.component';
       <table *ngIf="patients.length" mat-table [dataSource]="patients" class="full-width">
         <ng-container matColumnDef="patient_id"><th mat-header-cell *matHeaderCellDef>ID</th><td mat-cell *matCellDef="let p">{{ p.patient_id }}</td></ng-container>
         <ng-container matColumnDef="full_name"><th mat-header-cell *matHeaderCellDef>Full name</th><td mat-cell *matCellDef="let p">{{ p.full_name }}</td></ng-container>
-        <ng-container matColumnDef="country_code"><th mat-header-cell *matHeaderCellDef>Country</th><td mat-cell *matCellDef="let p">{{ p.country || p.country_code || '-' }}</td></ng-container>
+        <ng-container matColumnDef="country_code"><th mat-header-cell *matHeaderCellDef>Country</th><td mat-cell *matCellDef="let p">{{ countryName(p) }}</td></ng-container>
         <ng-container matColumnDef="diagnosis_date"><th mat-header-cell *matHeaderCellDef>Diagnosis date</th><td mat-cell *matCellDef="let p">{{ p.diagnosis_date || '-' }}</td></ng-container>
         <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Actions</th><td mat-cell *matCellDef="let p"><a class="table-action" [routerLink]="['/patients', p.patient_id, 'overview']">View</a> · <a class="table-action" [routerLink]="['/patients', p.patient_id, 'edit']">Edit</a></td></ng-container>
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
@@ -57,6 +58,7 @@ import { PageHeaderComponent } from '../../shared/ui/page-header.component';
 })
 export class PatientsComponent {
   private service = inject(PatientsService);
+  private countriesService = inject(CountriesService);
   private fb = inject(FormBuilder);
   private router = inject(Router);
 
@@ -67,10 +69,14 @@ export class PatientsComponent {
   page = 1;
   hasNext = false;
   hasPrevious = false;
+  countriesByCode: Record<string, string> = {};
 
   searchControl = this.fb.control('');
 
-  constructor() { this.load(1); }
+  constructor() {
+    this.loadCountries(1);
+    this.load(1);
+  }
 
   load(page: number): void {
     if (page < 1) return;
@@ -94,6 +100,24 @@ export class PatientsComponent {
   clearSearch(): void {
     this.searchControl.setValue('');
     this.load(1);
+  }
+
+  countryName(patient: Patient): string {
+    const code = patient.country_code ?? patient.country ?? '';
+    return this.countriesByCode[code] ?? code ?? '-';
+  }
+
+  private loadCountries(page: number): void {
+    this.countriesService.list(page).subscribe({
+      next: (response) => {
+        response.results.forEach((country) => {
+          this.countriesByCode[country.country_code] = country.country_name;
+        });
+        if (response.next) {
+          this.loadCountries(page + 1);
+        }
+      }
+    });
   }
 
   goNew(): void { void this.router.navigate(['/patients/new']); }
