@@ -16,7 +16,7 @@ import { diagnosisAfterBirthValidator } from '../../shared/validators/domain.val
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule, MatSelectModule],
   template: `
-    <form [formGroup]="form" (ngSubmit)="submit.emit(payload())" style="display:grid;grid-template-columns:repeat(2,minmax(240px,1fr));gap:1rem;align-items:end">
+    <form [formGroup]="form" (ngSubmit)="submit.emit(payload())" class="form-grid form-grid-2">
       <mat-form-field>
         <mat-label>Full name</mat-label>
         <input matInput formControlName="full_name" placeholder="e.g. Jane Doe" />
@@ -32,9 +32,9 @@ import { diagnosisAfterBirthValidator } from '../../shared/validators/domain.val
         <mat-error *ngIf="form.get('country_code')?.hasError('required')">Country is required.</mat-error>
       </mat-form-field>
 
-      <mat-form-field><mat-label>Date of birth</mat-label><input matInput type="date" formControlName="date_of_birth" /></mat-form-field>
-      <mat-form-field><mat-label>Diagnosis date</mat-label><input matInput type="date" formControlName="diagnosis_date" /></mat-form-field>
-      <mat-form-field style="grid-column:1/-1"><mat-label>Family history</mat-label><input matInput formControlName="family_history" /></mat-form-field>
+      <mat-form-field><mat-label>Date of birth</mat-label><input matInput type="date" [max]="today" formControlName="date_of_birth" /></mat-form-field>
+      <mat-form-field><mat-label>Diagnosis date</mat-label><input matInput type="date" [max]="today" formControlName="diagnosis_date" /></mat-form-field>
+      <mat-form-field class="notes-field"><mat-label>Family history</mat-label><textarea matInput rows="5" formControlName="family_history"></textarea></mat-form-field>
 
       <div style="grid-column:1/-1;display:flex;justify-content:flex-end;gap:.75rem">
         <button mat-stroked-button type="button" (click)="cancel.emit()">Cancel</button>
@@ -44,6 +44,7 @@ import { diagnosisAfterBirthValidator } from '../../shared/validators/domain.val
   `
 })
 export class PatientFormComponent {
+  today = new Date().toISOString().slice(0, 10);
   private fb = inject(FormBuilder);
   private countriesService = inject(CountriesService);
 

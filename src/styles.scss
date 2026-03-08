@@ -32,35 +32,81 @@ h1,h2,h3 { font-family: Poppins, Inter, sans-serif; letter-spacing: .1px; }
 .full-width { width: 100%; }
 
 .app-sidebar {
-  width: 260px;
-  background: #0B1220;
+  width: 270px;
+  background: linear-gradient(180deg, #0B1220 0%, #111827 100%);
   color: #E2E8F0;
   padding-top: .5rem;
   border-right: 1px solid rgba(148,163,184,.2);
 }
-.app-brand { padding: 1rem; margin: 0; color: #F8FAFC; font-weight: 600; }
-.menu-group-title { padding: .5rem 1rem .25rem; font-size: .8rem; opacity: .8; text-transform: uppercase; letter-spacing: .06em; }
-.mat-mdc-list-item.is-active { background: rgba(59,130,246,.18); border-left: 3px solid #60A5FA; }
-.mat-mdc-list-item { color: #E2E8F0 !important; }
-.mat-mdc-list-item:hover { background: rgba(148,163,184,.14); }
+.app-brand { padding: 1rem 1rem .5rem; margin: 0; color: #FFFFFF; font-weight: 700; letter-spacing: .02em; }
+.menu-group-title { padding: .6rem 1rem .3rem; font-size: .78rem; color: #94A3B8; text-transform: uppercase; letter-spacing: .08em; }
+.mat-mdc-list-item.is-active { background: rgba(37,99,235,.26); border-left: 3px solid #93C5FD; }
+.mat-mdc-list-item { color: #E2E8F0 !important; border-radius: 0 10px 10px 0; margin-right: .5rem; }
+.mat-mdc-list-item:hover { background: rgba(148,163,184,.22); }
+.mat-mdc-list-item .mdc-list-item__primary-text { color: #E2E8F0 !important; font-weight: 500; }
 
-.app-topbar { display:flex; justify-content:space-between; min-height: 64px; }
+.app-topbar {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  min-height: 64px;
+  background: #FFFFFF !important;
+  color: #0F172A !important;
+  border-bottom: 1px solid var(--border);
+}
 
 button[mat-button], button[mat-stroked-button], button[mat-flat-button] {
   border-radius: 10px !important;
   font-weight: 600;
+  transition: background-color .15s ease, box-shadow .15s ease, color .15s ease;
 }
 button[mat-stroked-button] { border-color: #CBD5E1 !important; }
 button[mat-stroked-button]:hover { background: #F1F5F9; }
 button[mat-flat-button][color='warn'] { background: #DC2626 !important; color: white !important; }
 
+button[mat-button]:focus-visible,
+button[mat-stroked-button]:focus-visible,
+button[mat-flat-button]:focus-visible {
+  outline: 2px solid #93C5FD;
+  outline-offset: 2px;
+}
+
 a.table-action { font-weight: 600; color: #2563EB; text-decoration: none; }
 a.table-action:hover { text-decoration: underline; }
 
-@media (max-width: 900px) {
-  .page-card { padding: .85rem; }
+.form-grid { display:grid; gap:1rem; align-items:start; }
+.form-grid-2 { grid-template-columns: repeat(2, minmax(220px, 1fr)); }
+.form-grid-3 { grid-template-columns: repeat(3, minmax(180px, 1fr)); }
+.form-span-2 { grid-column: span 2; }
+.notes-field { grid-column: 1 / -1; }
+.notes-field textarea { min-height: 112px; line-height: 1.35; }
+
+.detail-header {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:1rem;
+  margin-bottom:1rem;
 }
 
+.detail-grid {
+  display:grid;
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  gap: .8rem;
+}
+
+.notes-block {
+  margin-top: 1rem;
+  padding: .8rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #F8FAFC;
+}
+
+.notes-block p {
+  margin: .4rem 0 0;
+  color: #1E293B;
+}
 
 .pagination-bar {
   margin-top: 1rem;
@@ -77,19 +123,31 @@ a.table-action:hover { text-decoration: underline; }
   font-weight: 600;
 }
 
-.mat-mdc-list-item .mdc-list-item__primary-text {
-  color: #E2E8F0 !important;
+@media (max-width: 1024px) {
+  .form-grid-3,
+  .detail-grid {
+    grid-template-columns: repeat(2, minmax(180px, 1fr));
+  }
 }
 
-button[mat-button],
-button[mat-stroked-button],
-button[mat-flat-button] {
-  transition: background-color .15s ease, box-shadow .15s ease, color .15s ease;
+@media (max-width: 900px) {
+  .page-card { padding: .85rem; }
 }
 
-button[mat-button]:focus-visible,
-button[mat-stroked-button]:focus-visible,
-button[mat-flat-button]:focus-visible {
-  outline: 2px solid #93C5FD;
-  outline-offset: 2px;
+@media (max-width: 720px) {
+  .form-grid-2,
+  .form-grid-3,
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-span-2,
+  .notes-field {
+    grid-column: auto;
+  }
+
+  .detail-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }

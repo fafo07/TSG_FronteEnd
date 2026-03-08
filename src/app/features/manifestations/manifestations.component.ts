@@ -27,10 +27,10 @@ import { LoadingStateComponent } from '../../shared/ui/loading-state.component';
     <mat-card class="page-card">
       <h2>Patient manifestations</h2>
 
-      <form [formGroup]="form" (ngSubmit)="save()" style="display:grid;grid-template-columns:1fr 1fr 2fr auto;gap:1rem;align-items:center">
-        <mat-form-field><mat-label>Evaluation date</mat-label><input matInput type="date" formControlName="evaluation_date" /></mat-form-field>
+      <form [formGroup]="form" (ngSubmit)="save()" class="form-grid form-grid-3">
+        <mat-form-field><mat-label>Evaluation date</mat-label><input matInput type="date" [max]="today" formControlName="evaluation_date" /></mat-form-field>
         <mat-form-field><mat-label>System</mat-label><mat-select formControlName="system_code"><mat-option *ngFor="let s of systems" [value]="s.system_code">{{ s.system_name }}</mat-option></mat-select></mat-form-field>
-        <mat-form-field><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="notes"></textarea></mat-form-field>
+        <mat-form-field class="notes-field"><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="notes"></textarea></mat-form-field>
         <button mat-flat-button color="primary" [disabled]="form.invalid">{{ editingId ? 'Update' : 'Save' }}</button>
       </form>
 
@@ -43,13 +43,14 @@ import { LoadingStateComponent } from '../../shared/ui/loading-state.component';
         <ng-container matColumnDef="evaluation_date"><th mat-header-cell *matHeaderCellDef>Date</th><td mat-cell *matCellDef="let m">{{ m.evaluation_date || '-' }}</td></ng-container>
         <ng-container matColumnDef="system_code"><th mat-header-cell *matHeaderCellDef>System</th><td mat-cell *matCellDef="let m">{{ m.system_code }}</td></ng-container>
         <ng-container matColumnDef="notes"><th mat-header-cell *matHeaderCellDef>Notes</th><td mat-cell *matCellDef="let m">{{ m.notes || '-' }}</td></ng-container>
-        <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Actions</th><td mat-cell *matCellDef="let m"><a [routerLink]="['/manifestations', m.manifestation_id, 'findings']">Findings</a> · <button mat-button (click)="edit(m)">Edit</button></td></ng-container>
+        <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Actions</th><td mat-cell *matCellDef="let m"><button mat-stroked-button color="primary" [routerLink]="['/manifestations', m.manifestation_id, 'findings']">Findings</button> <button mat-button (click)="edit(m)">Edit</button></td></ng-container>
         <tr mat-header-row *matHeaderRowDef="columns"></tr><tr mat-row *matRowDef="let row; columns: columns"></tr>
       </table>
     </mat-card>
   `
 })
 export class ManifestationsComponent {
+  today = new Date().toISOString().slice(0, 10);
   private fb = inject(FormBuilder);
   private route = inject(ActivatedRoute);
   private service = inject(ManifestationsService);

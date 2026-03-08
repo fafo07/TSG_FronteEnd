@@ -26,13 +26,13 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
 
     <mat-card class="page-card">
       <h2>Adverse events</h2>
-      <form [formGroup]="form" (ngSubmit)="save()" style="display:grid;grid-template-columns:repeat(3,minmax(200px,1fr));gap:1rem;align-items:center">
+      <form [formGroup]="form" (ngSubmit)="save()" class="form-grid form-grid-3">
         <mat-form-field><mat-label>Event</mat-label><input matInput formControlName="event_name" /></mat-form-field>
-        <mat-form-field><mat-label>Event date</mat-label><input matInput type="date" formControlName="event_date" /></mat-form-field>
-        <mat-form-field><mat-label>Severity</mat-label><input matInput formControlName="severity" /></mat-form-field>
+        <mat-form-field><mat-label>Event date</mat-label><input matInput type="date" [max]="today" formControlName="event_date" /></mat-form-field>
+        <mat-form-field><mat-label>Severity</mat-label><mat-select formControlName="severity"><mat-option value="MILD">Mild</mat-option><mat-option value="MODERATE">Moderate</mat-option><mat-option value="SEVERE">Severe</mat-option><mat-option value="LIFE_THREATENING">Life-threatening</mat-option></mat-select></mat-form-field>
         <mat-form-field><mat-label>Action taken</mat-label><input matInput formControlName="action_taken" /></mat-form-field>
         <mat-form-field><mat-label>Treatment (optional)</mat-label><mat-select formControlName="treatment_id"><mat-option [value]="null">No link</mat-option><mat-option *ngFor="let t of treatments" [value]="t.treatment_id">#{{ t.treatment_id }} - {{ t.medication }}</mat-option></mat-select></mat-form-field>
-        <mat-form-field><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="notes"></textarea></mat-form-field>
+        <mat-form-field class="notes-field"><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="notes"></textarea></mat-form-field>
         <button mat-flat-button color="primary" [disabled]="form.invalid">{{ editingId ? 'Update' : 'Save' }}</button>
       </form>
 
@@ -52,6 +52,7 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
   `
 })
 export class AdverseEventsComponent {
+  today = new Date().toISOString().slice(0, 10);
   private fb = inject(FormBuilder);
   private route = inject(ActivatedRoute);
   private service = inject(AdverseEventsService);
@@ -68,7 +69,7 @@ export class AdverseEventsComponent {
   form = this.fb.group({
     event_name: ['', Validators.required],
     event_date: ['', Validators.required],
-    severity: [''],
+    severity: ['MILD'],
     action_taken: [''],
     notes: [''],
     treatment_id: [null as number | null]
@@ -117,7 +118,7 @@ export class AdverseEventsComponent {
     };
 
     const done = () => {
-      this.form.reset({ event_name: '', event_date: '', severity: '', action_taken: '', notes: '', treatment_id: null });
+      this.form.reset({ event_name: '', event_date: '', severity: 'MILD', action_taken: '', notes: '', treatment_id: null });
       this.editingId = null;
       this.load();
     };

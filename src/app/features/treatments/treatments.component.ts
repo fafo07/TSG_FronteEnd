@@ -27,15 +27,15 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
 
     <mat-card class="page-card">
       <h2>Treatments</h2>
-      <form [formGroup]="form" (ngSubmit)="save()" style="display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:1rem;align-items:center">
-        <mat-form-field><mat-label>Manifestation</mat-label><mat-select formControlName="manifestation_id"><mat-option *ngFor="let m of manifestations" [value]="m.manifestation_id">{{ m.system_code }} - {{ m.evaluation_date }}</mat-option></mat-select></mat-form-field>
+      <form [formGroup]="form" (ngSubmit)="save()" class="form-grid form-grid-3">
+        <mat-form-field class="form-span-2"><mat-label>Manifestation</mat-label><mat-select formControlName="manifestation_id"><mat-option *ngFor="let m of manifestations" [value]="m.manifestation_id">{{ m.system_code }} · Evaluation {{ m.evaluation_date }}</mat-option></mat-select></mat-form-field>
         <mat-form-field><mat-label>Medication</mat-label><input matInput formControlName="medication" /></mat-form-field>
         <mat-form-field><mat-label>Dose</mat-label><input matInput formControlName="dose" /></mat-form-field>
         <mat-form-field><mat-label>Indication</mat-label><input matInput formControlName="indication" /></mat-form-field>
-        <mat-form-field><mat-label>Start date</mat-label><input matInput type="date" formControlName="start_date" /></mat-form-field>
-        <mat-form-field><mat-label>End date</mat-label><input matInput type="date" formControlName="end_date" /></mat-form-field>
+        <mat-form-field><mat-label>Start date</mat-label><input matInput type="date" [max]="today" formControlName="start_date" /></mat-form-field>
+        <mat-form-field><mat-label>End date</mat-label><input matInput type="date" [max]="today" formControlName="end_date" /></mat-form-field>
         <mat-form-field><mat-label>Status</mat-label><input matInput formControlName="status" /></mat-form-field>
-        <mat-form-field style="grid-column:span 2"><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="notes"></textarea></mat-form-field>
+        <mat-form-field class="notes-field"><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="notes"></textarea></mat-form-field>
         <button mat-flat-button color="primary" [disabled]="form.invalid">{{ editingId ? 'Update' : 'Save' }}</button>
       </form>
 
@@ -56,6 +56,7 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
   `
 })
 export class TreatmentsComponent {
+  today = new Date().toISOString().slice(0, 10);
   private fb = inject(FormBuilder);
   private route = inject(ActivatedRoute);
   private service = inject(TreatmentsService);

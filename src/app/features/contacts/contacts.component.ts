@@ -39,13 +39,13 @@ type PatientContactListItem = Contact | {
 
     <mat-card class="page-card">
       <h2>Contacts</h2>
-      <form [formGroup]="form" (ngSubmit)="save()" style="display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:1rem;align-items:center">
+      <form [formGroup]="form" (ngSubmit)="save()" class="form-grid form-grid-3">
         <mat-form-field><mat-label>Full name</mat-label><input matInput formControlName="full_name" /></mat-form-field>
         <mat-form-field><mat-label>Phone</mat-label><input matInput formControlName="phone" /></mat-form-field>
         <mat-form-field><mat-label>Email</mat-label><input matInput formControlName="email" /></mat-form-field>
         <mat-form-field><mat-label>Relationship</mat-label><input matInput formControlName="relationship" /></mat-form-field>
         <mat-form-field><mat-label>Address</mat-label><input matInput formControlName="address" /></mat-form-field>
-        <mat-form-field style="grid-column:span 2"><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="notes"></textarea></mat-form-field>
+        <mat-form-field class="notes-field"><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="notes"></textarea></mat-form-field>
         <mat-checkbox formControlName="is_primary">Primary</mat-checkbox>
         <button mat-flat-button color="primary">{{ editingContactId ? 'Update contact' : 'Save & link' }}</button>
       </form>

@@ -25,12 +25,12 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
 
     <mat-card class="page-card">
       <h2>Genetic tests</h2>
-      <form [formGroup]="form" (ngSubmit)="save()" style="display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:1rem;align-items:center">
+      <form [formGroup]="form" (ngSubmit)="save()" class="form-grid form-grid-3">
         <mat-form-field><mat-label>Gene</mat-label><input matInput formControlName="gene" placeholder="TSC1 or TSC2" /></mat-form-field>
-        <mat-form-field><mat-label>Test date</mat-label><input matInput type="date" formControlName="test_date" /></mat-form-field>
+        <mat-form-field><mat-label>Test date</mat-label><input matInput type="date" [max]="today" formControlName="test_date" /></mat-form-field>
         <mat-form-field><mat-label>Variant</mat-label><input matInput formControlName="variant" /></mat-form-field>
         <mat-form-field><mat-label>Laboratory</mat-label><input matInput formControlName="lab_name" /></mat-form-field>
-        <mat-form-field style="grid-column:span 2"><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="notes"></textarea></mat-form-field>
+        <mat-form-field class="notes-field"><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="notes"></textarea></mat-form-field>
         <button mat-flat-button color="primary">{{ editingId ? 'Update' : 'Save' }}</button>
       </form>
       <p *ngIf="form.errors?.['invalidGene']" style="color:#DC2626">Gene must be TSC1 or TSC2</p>
@@ -50,6 +50,7 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
   `
 })
 export class GeneticTestsComponent {
+  today = new Date().toISOString().slice(0, 10);
   private fb = inject(FormBuilder);
   private route = inject(ActivatedRoute);
   private service = inject(GeneticTestsService);

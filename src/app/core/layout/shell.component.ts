@@ -8,7 +8,6 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import { filter } from 'rxjs';
 
 import { AuthService } from '../auth/auth.service';
-import { SessionStore } from '../auth/session.store';
 
 @Component({
   standalone: true,
@@ -29,15 +28,12 @@ import { SessionStore } from '../auth/session.store';
     </mat-sidenav>
 
     <mat-sidenav-content>
-      <mat-toolbar color="primary" class="app-topbar">
+      <mat-toolbar class="app-topbar">
         <div style="display:flex;align-items:center;gap:.5rem">
           <button *ngIf="isMobile" mat-icon-button (click)="sidenav.toggle()" aria-label="Open menu">☰</button>
           <span>{{ pageTitle }}</span>
         </div>
-        <div style="display:flex;align-items:center;gap:1rem">
-          <small>{{ sessionStore.session$.value?.username || 'User' }}</small>
-          <button mat-button (click)="logout()">Logout</button>
-        </div>
+        <button mat-stroked-button (click)="logout()">Logout</button>
       </mat-toolbar>
       <div style="padding:1rem"><router-outlet /></div>
     </mat-sidenav-content>
@@ -47,7 +43,6 @@ import { SessionStore } from '../auth/session.store';
 export class ShellComponent {
   private auth = inject(AuthService);
   private router = inject(Router);
-  sessionStore = inject(SessionStore);
   isMobile = typeof window !== 'undefined' ? window.innerWidth <= 900 : false;
   pageTitle = 'Dashboard';
 
