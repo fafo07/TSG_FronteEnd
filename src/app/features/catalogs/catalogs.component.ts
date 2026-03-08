@@ -88,7 +88,7 @@ import { PageHeaderComponent } from '../../shared/ui/page-header.component';
           <app-empty-state *ngIf="!findings.length" message="No findings found" />
           <table *ngIf="findings.length" mat-table [dataSource]="findings" class="full-width">
             <ng-container matColumnDef="finding_code"><th mat-header-cell *matHeaderCellDef>Code</th><td mat-cell *matCellDef="let f">{{ f.finding_code }}</td></ng-container>
-            <ng-container matColumnDef="system_code"><th mat-header-cell *matHeaderCellDef>System</th><td mat-cell *matCellDef="let f">{{ f.system_code }}</td></ng-container>
+            <ng-container matColumnDef="system_code"><th mat-header-cell *matHeaderCellDef>System</th><td mat-cell *matCellDef="let f">{{ f.system || f.system_code }}</td></ng-container>
             <ng-container matColumnDef="finding_name"><th mat-header-cell *matHeaderCellDef>Finding</th><td mat-cell *matCellDef="let f">{{ f.finding_name }}</td></ng-container>
             <ng-container matColumnDef="is_active"><th mat-header-cell *matHeaderCellDef>Active</th><td mat-cell *matCellDef="let f">{{ f.is_active ? 'Yes' : 'No' }}</td></ng-container>
             <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Actions</th><td mat-cell *matCellDef="let f"><button mat-button (click)="editFinding(f)">Edit</button></td></ng-container>
@@ -282,7 +282,7 @@ export class CatalogsComponent {
     this.editingFindingCode = finding.finding_code;
     this.findingForm.patchValue({
       finding_code: finding.finding_code,
-      system_code: finding.system_code,
+      system_code: finding.system_code || finding.system || '',
       finding_name: finding.finding_name,
       description: finding.description ?? '',
       is_active: finding.is_active

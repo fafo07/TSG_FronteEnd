@@ -41,7 +41,7 @@ import { LoadingStateComponent } from '../../shared/ui/loading-state.component';
 
       <table *ngIf="!loading && !error && items.length" mat-table [dataSource]="items" class="full-width" style="margin-top:1rem">
         <ng-container matColumnDef="evaluation_date"><th mat-header-cell *matHeaderCellDef>Date</th><td mat-cell *matCellDef="let m">{{ m.evaluation_date || '-' }}</td></ng-container>
-        <ng-container matColumnDef="system_code"><th mat-header-cell *matHeaderCellDef>System</th><td mat-cell *matCellDef="let m">{{ m.system_code }}</td></ng-container>
+        <ng-container matColumnDef="system_code"><th mat-header-cell *matHeaderCellDef>System</th><td mat-cell *matCellDef="let m">{{ m.system || m.system_code }}</td></ng-container>
         <ng-container matColumnDef="notes"><th mat-header-cell *matHeaderCellDef>Notes</th><td mat-cell *matCellDef="let m">{{ m.notes || '-' }}</td></ng-container>
         <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Actions</th><td mat-cell *matCellDef="let m"><button mat-stroked-button color="primary" [routerLink]="['/manifestations', m.manifestation_id, 'findings']">Findings</button> <button mat-button (click)="edit(m)">Edit</button></td></ng-container>
         <tr mat-header-row *matHeaderRowDef="columns"></tr><tr mat-row *matRowDef="let row; columns: columns"></tr>
@@ -92,7 +92,7 @@ export class ManifestationsComponent {
 
   edit(item: Manifestation): void {
     this.editingId = item.manifestation_id;
-    this.form.patchValue({ evaluation_date: item.evaluation_date, system_code: item.system_code, notes: item.notes ?? '' });
+    this.form.patchValue({ evaluation_date: item.evaluation_date, system_code: item.system_code || item.system || '', notes: item.notes ?? '' });
   }
 
   save(): void {

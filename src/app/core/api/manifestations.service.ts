@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 
 import { environment } from '../config/environment';
 import { Manifestation } from '../../shared/models/models';
@@ -12,21 +12,37 @@ export class ManifestationsService {
 
   listByPatient(patientId: number, system_code?: string, from?: string, to?: string): Observable<PaginatedResponse<Manifestation> | Manifestation[]> {
     let params = new HttpParams();
-    if (system_code) params = params.set('system_code', system_code);
+    if (system_code) params = params.set('system', system_code);
     if (from) params = params.set('from', from);
     if (to) params = params.set('to', to);
-    return this.http.get<Manifestation[]>(`${environment.apiBaseUrl}/patients/${patientId}/manifestations`, { params });
+    return this.http.get<Manifestation[]>(`${environment.apiBaseUrl}/patients/${patientId}/manifestations`, { params }).pipe(
+      map((items) => items.map((item) => this.normalize(item)))
+    );
   }
 
   create(patientId: number, payload: Partial<Manifestation>): Observable<Manifestation> {
-    return this.http.post<Manifestation>(`${environment.apiBaseUrl}/patients/${patientId}/manifestations`, payload);
+    return this.http.post<Manifestation>(`${environment.apiBaseUrl}/patients/${patientId}/manifestations`, this.toApiPayload(payload)).pipe(map((item) => this.normalize(item)));
   }
 
   getById(manifestationId: number): Observable<Manifestation> {
-    return this.http.get<Manifestation>(`${environment.apiBaseUrl}/manifestations/${manifestationId}`);
+    return this.http.get<Manifestation>(`${environment.apiBaseUrl}/manifestations/${manifestationId}`).pipe(map((item) => this.normalize(item)));
   }
 
   update(manifestationId: number, payload: Partial<Manifestation>): Observable<Manifestation> {
-    return this.http.put<Manifestation>(`${environment.apiBaseUrl}/manifestations/${manifestationId}`, payload);
+    return this.http.put<Manifestation>(`${environment.apiBaseUrl}/manifestations/${manifestationId}`, this.toApiPayload(payload)).pipe(map((item) => this.normalize(item)));
+  }
+
+  private normalize(item: Manifestation): Manifestation {
+    const system = item.system ?? item.system_code;
+    return { ...item, system, system_code: item.system_code ?? system ?? '' };
+  }
+
+  private toApiPayload(payload: Partial<Manifestation>): Partial<Manifestation> & { system?: string } {
+    const system = payload.system ?? payload.system_code;
+    return {
+      ...payload,
+      system,
+      system_code: undefined
+    };
   }
 }

@@ -43,7 +43,7 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
       <table *ngIf="!loading && !error && items.length" mat-table [dataSource]="items" class="full-width" style="margin-top:1rem">
         <ng-container matColumnDef="event_name"><th mat-header-cell *matHeaderCellDef>Event</th><td mat-cell *matCellDef="let item">{{ item.event_name }}</td></ng-container>
         <ng-container matColumnDef="event_date"><th mat-header-cell *matHeaderCellDef>Date</th><td mat-cell *matCellDef="let item">{{ item.event_date }}</td></ng-container>
-        <ng-container matColumnDef="treatment_id"><th mat-header-cell *matHeaderCellDef>Treatment</th><td mat-cell *matCellDef="let item">{{ item.treatment_id || '-' }}</td></ng-container>
+        <ng-container matColumnDef="treatment_id"><th mat-header-cell *matHeaderCellDef>Treatment</th><td mat-cell *matCellDef="let item">{{ resolveTreatmentLabel(item) }}</td></ng-container>
         <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Actions</th><td mat-cell *matCellDef="let item"><button mat-button (click)="startEdit(item)">Edit</button><button mat-button color="warn" (click)="remove(item)">Delete</button></td></ng-container>
         <tr mat-header-row *matHeaderRowDef="columns"></tr>
         <tr mat-row *matRowDef="let row; columns: columns"></tr>
@@ -97,7 +97,14 @@ export class AdverseEventsComponent {
 
   startEdit(item: AdverseEvent): void {
     this.editingId = item.ae_id;
-    this.form.patchValue({ ...item });
+    this.form.patchValue({ ...item, treatment_id: item.treatment_id ?? item.treatment ?? null });
+  }
+
+  resolveTreatmentLabel(item: AdverseEvent): string {
+    const treatmentId = item.treatment_id ?? item.treatment ?? null;
+    if (!treatmentId) return '-';
+    const treatment = this.treatments.find((t) => t.treatment_id === treatmentId);
+    return treatment ? `${treatment.medication} (#${treatmentId})` : `#${treatmentId}`;
   }
 
   remove(item: AdverseEvent): void {

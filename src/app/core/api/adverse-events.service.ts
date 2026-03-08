@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 
 import { environment } from '../config/environment';
 import { AdverseEvent } from '../../shared/models/models';
@@ -11,18 +11,34 @@ export class AdverseEventsService {
   private http = inject(HttpClient);
 
   listByPatient(patientId: number): Observable<PaginatedResponse<AdverseEvent> | AdverseEvent[]> {
-    return this.http.get<AdverseEvent[]>(`${environment.apiBaseUrl}/patients/${patientId}/adverse-events`);
+    return this.http.get<AdverseEvent[]>(`${environment.apiBaseUrl}/patients/${patientId}/adverse-events`).pipe(
+      map((items) => items.map((item) => this.normalize(item)))
+    );
   }
 
   create(patientId: number, payload: Partial<AdverseEvent>): Observable<AdverseEvent> {
-    return this.http.post<AdverseEvent>(`${environment.apiBaseUrl}/patients/${patientId}/adverse-events`, payload);
+    return this.http.post<AdverseEvent>(`${environment.apiBaseUrl}/patients/${patientId}/adverse-events`, this.toApiPayload(payload)).pipe(map((item) => this.normalize(item)));
   }
 
   update(aeId: number, payload: Partial<AdverseEvent>): Observable<AdverseEvent> {
-    return this.http.put<AdverseEvent>(`${environment.apiBaseUrl}/adverse-events/${aeId}`, payload);
+    return this.http.put<AdverseEvent>(`${environment.apiBaseUrl}/adverse-events/${aeId}`, this.toApiPayload(payload)).pipe(map((item) => this.normalize(item)));
   }
 
   delete(aeId: number): Observable<void> {
     return this.http.delete<void>(`${environment.apiBaseUrl}/adverse-events/${aeId}`);
+  }
+
+  private normalize(item: AdverseEvent): AdverseEvent {
+    const treatment = item.treatment ?? item.treatment_id ?? null;
+    return { ...item, treatment, treatment_id: item.treatment_id ?? treatment };
+  }
+
+  private toApiPayload(payload: Partial<AdverseEvent>): Partial<AdverseEvent> & { treatment?: number | null } {
+    const treatment = payload.treatment ?? payload.treatment_id ?? null;
+    return {
+      ...payload,
+      treatment,
+      treatment_id: undefined
+    };
   }
 }

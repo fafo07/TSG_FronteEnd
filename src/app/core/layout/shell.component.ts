@@ -18,7 +18,6 @@ import { AuthService } from '../auth/auth.service';
       <h3 class="app-brand">Dashboard</h3>
       <mat-nav-list>
         <a mat-list-item routerLink="/dashboard" routerLinkActive="is-active" (click)="closeOnMobile(sidenav)">Dashboard</a>
-        <a mat-list-item routerLink="/users" routerLinkActive="is-active" (click)="closeOnMobile(sidenav)">Users</a>
         <a mat-list-item routerLink="/patients" routerLinkActive="is-active" (click)="closeOnMobile(sidenav)">Patients</a>
         <div class="menu-group-title">Catalogs</div>
         <a mat-list-item routerLink="/catalogs/systems" routerLinkActive="is-active" (click)="closeOnMobile(sidenav)">Systems</a>
@@ -64,7 +63,6 @@ export class ShellComponent {
     if (url.includes('/catalogs/')) this.pageTitle = 'Catalogs';
     else if (url.includes('/patients/')) this.pageTitle = 'Patient details';
     else if (url.includes('/patients')) this.pageTitle = 'Patients';
-    else if (url.includes('/users')) this.pageTitle = 'Users';
     else this.pageTitle = 'Dashboard';
   }
 

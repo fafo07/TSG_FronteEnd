@@ -21,7 +21,7 @@ import { Patient } from '../../shared/models/models';
       </div>
 
       <div class="detail-grid">
-        <div><strong>Country</strong><div>{{ p.country_code || '-' }}</div></div>
+        <div><strong>Country</strong><div>{{ p.country || p.country_code || '-' }}</div></div>
         <div><strong>Birth date</strong><div>{{ p.date_of_birth || '-' }}</div></div>
         <div><strong>Diagnosis date</strong><div>{{ p.diagnosis_date || '-' }}</div></div>
       </div>

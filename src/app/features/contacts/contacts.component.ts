@@ -18,9 +18,11 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
 import { ErrorStateComponent } from '../../shared/ui/error-state.component';
 import { LoadingStateComponent } from '../../shared/ui/loading-state.component';
 import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
+import { forkJoin, map, of, switchMap } from 'rxjs';
 
 type PatientContactListItem = Contact | {
-  contact?: Contact;
+  patient?: number;
+  contact?: number | Contact;
   contact_id?: number;
   is_primary?: boolean;
   full_name?: string;
@@ -99,9 +101,26 @@ export class ContactsComponent {
   load(): void {
     this.loading = true;
     this.error = false;
-    this.service.listByPatient(this.patientId).subscribe({
-      next: (data) => {
-        this.contacts = unwrapResults(data).map((item) => this.normalizeContact(item as PatientContactListItem));
+    this.service.listByPatient(this.patientId).pipe(
+      map((data) => unwrapResults(data).map((item) => this.normalizeContact(item as PatientContactListItem))),
+      switchMap((contacts) => {
+        const missingDetails = contacts.filter((contact) => !contact.full_name?.trim() && contact.contact_id > 0);
+        if (!missingDetails.length) return of(contacts);
+
+        return forkJoin(
+          missingDetails.map((item) =>
+            this.service.getById(item.contact_id).pipe(map((resolved) => ({ id: item.contact_id, resolved })))
+          )
+        ).pipe(
+          map((resolvedContacts) => {
+            const resolvedById = new Map(resolvedContacts.map((entry) => [entry.id, entry.resolved]));
+            return contacts.map((contact) => resolvedById.get(contact.contact_id) ? { ...resolvedById.get(contact.contact_id)!, is_primary: contact.is_primary } : contact);
+          })
+        );
+      })
+    ).subscribe({
+      next: (contacts) => {
+        this.contacts = contacts;
         this.contacts.forEach((c) => {
           this.primaryByContactId[c.contact_id] = !!c.is_primary;
         });
@@ -142,13 +161,16 @@ export class ContactsComponent {
 
 
   private normalizeContact(item: PatientContactListItem): Contact {
-    const nested = 'contact' in item && item.contact ? item.contact : null;
+    const rawContact = 'contact' in item ? item.contact : undefined;
+    const nested = rawContact && typeof rawContact === 'object' ? rawContact : null;
+    const contactId = nested?.contact_id ?? item.contact_id ?? (typeof rawContact === 'number' ? rawContact : 0);
+
     if (nested) {
-      return { ...nested, is_primary: item.is_primary ?? nested.is_primary ?? false };
+      return { ...nested, contact_id: contactId, is_primary: item.is_primary ?? nested.is_primary ?? false };
     }
 
     return {
-      contact_id: item.contact_id ?? 0,
+      contact_id: contactId,
       full_name: item.full_name ?? '',
       relationship: item.relationship ?? undefined,
       phone: item.phone ?? undefined,

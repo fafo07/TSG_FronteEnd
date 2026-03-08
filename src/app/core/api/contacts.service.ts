@@ -18,6 +18,10 @@ export class ContactsService {
     return this.http.put<Contact>(`${environment.apiBaseUrl}/contacts/${contactId}`, payload);
   }
 
+  getById(contactId: number): Observable<Contact> {
+    return this.http.get<Contact>(`${environment.apiBaseUrl}/contacts/${contactId}`);
+  }
+
   listByPatient(patientId: number): Observable<PaginatedResponse<Contact> | Contact[]> {
     return this.http.get<Contact[]>(`${environment.apiBaseUrl}/patients/${patientId}/contacts`);
   }

@@ -3,6 +3,7 @@ export interface Patient {
   full_name: string;
   date_of_birth?: string;
   country_code?: string;
+  country?: string;
   family_history?: string;
   diagnosis_date?: string;
   created_at?: string;
@@ -16,12 +17,14 @@ export interface Country {
 
 export interface System {
   system_code: string;
+  system?: string;
   system_name: string;
 }
 
 export interface FindingCatalog {
   finding_code: string;
   system_code: string;
+  system?: string;
   finding_name: string;
   description?: string;
   is_active: boolean;
@@ -41,6 +44,7 @@ export interface Manifestation {
   manifestation_id: number;
   patient_id: number;
   system_code: string;
+  system?: string;
   evaluation_date: string;
   notes?: string;
 }
@@ -68,6 +72,7 @@ export interface AdverseEvent {
   ae_id: number;
   patient_id: number;
   treatment_id?: number | null;
+  treatment?: number | null;
   event_date: string;
   event_name: string;
   severity?: string;
@@ -77,6 +82,8 @@ export interface AdverseEvent {
 
 export interface Contact {
   contact_id: number;
+  patient?: number;
+  contact?: number | Contact;
   full_name: string;
   relationship?: string;
   phone?: string;
