@@ -30,7 +30,7 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
         <mat-form-field><mat-label>Test date</mat-label><input matInput type="date" formControlName="test_date" /></mat-form-field>
         <mat-form-field><mat-label>Variant</mat-label><input matInput formControlName="variant" /></mat-form-field>
         <mat-form-field><mat-label>Laboratory</mat-label><input matInput formControlName="lab_name" /></mat-form-field>
-        <mat-form-field style="grid-column:span 2"><mat-label>Notes</mat-label><input matInput formControlName="notes" /></mat-form-field>
+        <mat-form-field style="grid-column:span 2"><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="notes"></textarea></mat-form-field>
         <button mat-flat-button color="primary">{{ editingId ? 'Update' : 'Save' }}</button>
       </form>
       <p *ngIf="form.errors?.['invalidGene']" style="color:#DC2626">Gene must be TSC1 or TSC2</p>
@@ -91,7 +91,7 @@ export class GeneticTestsComponent {
   }
 
   remove(item: GeneticTest): void {
-    if (!window.confirm(`Delete teste ${item.test_id}?`)) return;
+    if (!window.confirm(`Delete test ${item.test_id}?`)) return;
     this.service.delete(item.test_id).subscribe(() => this.load());
   }
 

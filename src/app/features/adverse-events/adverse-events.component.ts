@@ -29,10 +29,10 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
       <form [formGroup]="form" (ngSubmit)="save()" style="display:grid;grid-template-columns:repeat(3,minmax(200px,1fr));gap:1rem;align-items:center">
         <mat-form-field><mat-label>Event</mat-label><input matInput formControlName="event_name" /></mat-form-field>
         <mat-form-field><mat-label>Event date</mat-label><input matInput type="date" formControlName="event_date" /></mat-form-field>
-        <mat-form-field><mat-label>Severidade</mat-label><input matInput formControlName="severity" /></mat-form-field>
+        <mat-form-field><mat-label>Severity</mat-label><input matInput formControlName="severity" /></mat-form-field>
         <mat-form-field><mat-label>Action taken</mat-label><input matInput formControlName="action_taken" /></mat-form-field>
         <mat-form-field><mat-label>Treatment (optional)</mat-label><mat-select formControlName="treatment_id"><mat-option [value]="null">No link</mat-option><mat-option *ngFor="let t of treatments" [value]="t.treatment_id">#{{ t.treatment_id }} - {{ t.medication }}</mat-option></mat-select></mat-form-field>
-        <mat-form-field><mat-label>Notes</mat-label><input matInput formControlName="notes" /></mat-form-field>
+        <mat-form-field><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="notes"></textarea></mat-form-field>
         <button mat-flat-button color="primary" [disabled]="form.invalid">{{ editingId ? 'Update' : 'Save' }}</button>
       </form>
 

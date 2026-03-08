@@ -50,7 +50,7 @@ import { PageHeaderComponent } from '../../shared/ui/page-header.component';
             <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Actions</th><td mat-cell *matCellDef="let c"><button mat-button (click)="editCountry(c)">Edit</button><button mat-button color="warn" (click)="deleteCountry(c)">Delete</button></td></ng-container>
             <tr mat-header-row *matHeaderRowDef="countryColumns"></tr><tr mat-row *matRowDef="let row; columns: countryColumns"></tr>
           </table>
-          <div style="display:flex;justify-content:flex-end;gap:.5rem;margin-top:1rem">
+          <div class="pagination-bar">
             <button mat-stroked-button (click)="load(mode, page - 1)" [disabled]="!hasPrevious">Previous</button>
             <small>Page {{ page }}</small>
             <button mat-stroked-button (click)="load(mode, page + 1)" [disabled]="!hasNext">Next</button>
@@ -70,7 +70,7 @@ import { PageHeaderComponent } from '../../shared/ui/page-header.component';
             <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Actions</th><td mat-cell *matCellDef="let s"><button mat-button (click)="editSystem(s)">Edit</button><button mat-button color="warn" (click)="deleteSystem(s)">Delete</button></td></ng-container>
             <tr mat-header-row *matHeaderRowDef="systemColumns"></tr><tr mat-row *matRowDef="let row; columns: systemColumns"></tr>
           </table>
-          <div style="display:flex;justify-content:flex-end;gap:.5rem;margin-top:1rem">
+          <div class="pagination-bar">
             <button mat-stroked-button (click)="load(mode, page - 1)" [disabled]="!hasPrevious">Previous</button>
             <small>Page {{ page }}</small>
             <button mat-stroked-button (click)="load(mode, page + 1)" [disabled]="!hasNext">Next</button>
@@ -94,7 +94,7 @@ import { PageHeaderComponent } from '../../shared/ui/page-header.component';
             <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Actions</th><td mat-cell *matCellDef="let f"><button mat-button (click)="editFinding(f)">Edit</button></td></ng-container>
             <tr mat-header-row *matHeaderRowDef="findingColumns"></tr><tr mat-row *matRowDef="let row; columns: findingColumns"></tr>
           </table>
-          <div style="display:flex;justify-content:flex-end;gap:.5rem;margin-top:1rem">
+          <div class="pagination-bar">
             <button mat-stroked-button (click)="load(mode, page - 1)" [disabled]="!hasPrevious">Previous</button>
             <small>Page {{ page }}</small>
             <button mat-stroked-button (click)="load(mode, page + 1)" [disabled]="!hasNext">Next</button>

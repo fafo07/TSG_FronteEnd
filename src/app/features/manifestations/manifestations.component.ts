@@ -30,7 +30,7 @@ import { LoadingStateComponent } from '../../shared/ui/loading-state.component';
       <form [formGroup]="form" (ngSubmit)="save()" style="display:grid;grid-template-columns:1fr 1fr 2fr auto;gap:1rem;align-items:center">
         <mat-form-field><mat-label>Evaluation date</mat-label><input matInput type="date" formControlName="evaluation_date" /></mat-form-field>
         <mat-form-field><mat-label>System</mat-label><mat-select formControlName="system_code"><mat-option *ngFor="let s of systems" [value]="s.system_code">{{ s.system_name }}</mat-option></mat-select></mat-form-field>
-        <mat-form-field><mat-label>Notes</mat-label><input matInput formControlName="notes" /></mat-form-field>
+        <mat-form-field><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="notes"></textarea></mat-form-field>
         <button mat-flat-button color="primary" [disabled]="form.invalid">{{ editingId ? 'Update' : 'Save' }}</button>
       </form>
 

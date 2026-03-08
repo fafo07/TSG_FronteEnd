@@ -1,5 +1,6 @@
 import { Component, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -12,17 +13,17 @@ import { FindingCatalog } from '../../shared/models/models';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, MatCardModule, MatCheckboxModule, MatButtonModule],
+  imports: [CommonModule, FormsModule, MatCardModule, MatCheckboxModule, MatButtonModule],
   template: `
     <mat-card class="page-card">
-      <h2>Manifestation findings</h2>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem"><h2 style="margin:0">Manifestation findings</h2><button mat-stroked-button type="button" (click)="back()">Back</button></div>
       <p *ngIf="loading">Loading...</p>
       <p *ngIf="error" style="color:#DC2626">Failed to load manifestation data.</p>
 
       <div *ngIf="!loading && !findingsCatalog.length">No findings available for this manifestation system.</div>
 
       <div *ngFor="let item of findingsCatalog" style="margin:.5rem 0">
-        <mat-checkbox [checked]="selected[item.finding_code]" (change)="toggle(item.finding_code, $event.checked)">{{ item.finding_name }}</mat-checkbox>
+        <mat-checkbox [(ngModel)]="selected[item.finding_code]" [ngModelOptions]="{standalone: true}">{{ item.finding_name }}</mat-checkbox>
       </div>
 
       <button mat-flat-button color="primary" (click)="save()" [disabled]="loading || !!error">Save</button>
@@ -35,6 +36,7 @@ export class FindingsComponent {
   private catalogService = inject(FindingsCatalogService);
   private mfService = inject(ManifestationFindingsService);
   private manifestationsService = inject(ManifestationsService);
+  private location = inject(Location);
 
   manifestationId = Number(this.route.snapshot.paramMap.get('mid'));
   findingsCatalog: FindingCatalog[] = [];
@@ -77,10 +79,6 @@ export class FindingsComponent {
     });
   }
 
-  toggle(code: string, checked: boolean): void {
-    this.selected[code] = checked;
-  }
-
   save(): void {
     const findings = this.findingsCatalog.map((item) => ({
       finding_code: item.finding_code,
@@ -88,5 +86,9 @@ export class FindingsComponent {
     }));
 
     this.mfService.replace(this.manifestationId, findings).subscribe(() => (this.saved = true));
+  }
+
+  back(): void {
+    this.location.back();
   }
 }

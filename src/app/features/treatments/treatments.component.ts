@@ -35,7 +35,7 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
         <mat-form-field><mat-label>Start date</mat-label><input matInput type="date" formControlName="start_date" /></mat-form-field>
         <mat-form-field><mat-label>End date</mat-label><input matInput type="date" formControlName="end_date" /></mat-form-field>
         <mat-form-field><mat-label>Status</mat-label><input matInput formControlName="status" /></mat-form-field>
-        <mat-form-field style="grid-column:span 2"><mat-label>Notes</mat-label><input matInput formControlName="notes" /></mat-form-field>
+        <mat-form-field style="grid-column:span 2"><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="notes"></textarea></mat-form-field>
         <button mat-flat-button color="primary" [disabled]="form.invalid">{{ editingId ? 'Update' : 'Save' }}</button>
       </form>
 

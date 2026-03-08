@@ -60,3 +60,36 @@ a.table-action:hover { text-decoration: underline; }
 @media (max-width: 900px) {
   .page-card { padding: .85rem; }
 }
+
+
+.pagination-bar {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: .75rem;
+}
+
+.pagination-bar small {
+  min-width: 76px;
+  text-align: center;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.mat-mdc-list-item .mdc-list-item__primary-text {
+  color: #E2E8F0 !important;
+}
+
+button[mat-button],
+button[mat-stroked-button],
+button[mat-flat-button] {
+  transition: background-color .15s ease, box-shadow .15s ease, color .15s ease;
+}
+
+button[mat-button]:focus-visible,
+button[mat-stroked-button]:focus-visible,
+button[mat-flat-button]:focus-visible {
+  outline: 2px solid #93C5FD;
+  outline-offset: 2px;
+}

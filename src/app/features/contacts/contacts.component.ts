@@ -45,6 +45,7 @@ type PatientContactListItem = Contact | {
         <mat-form-field><mat-label>Email</mat-label><input matInput formControlName="email" /></mat-form-field>
         <mat-form-field><mat-label>Relationship</mat-label><input matInput formControlName="relationship" /></mat-form-field>
         <mat-form-field><mat-label>Address</mat-label><input matInput formControlName="address" /></mat-form-field>
+        <mat-form-field style="grid-column:span 2"><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="notes"></textarea></mat-form-field>
         <mat-checkbox formControlName="is_primary">Primary</mat-checkbox>
         <button mat-flat-button color="primary">{{ editingContactId ? 'Update contact' : 'Save & link' }}</button>
       </form>

@@ -46,7 +46,7 @@ import { PageHeaderComponent } from '../../shared/ui/page-header.component';
         <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
       </table>
 
-      <div *ngIf="patients.length" style="display:flex;justify-content:flex-end;align-items:center;gap:.75rem;margin-top:1rem">
+      <div *ngIf="patients.length" class="pagination-bar">
         <button mat-stroked-button (click)="load(page - 1)" [disabled]="!hasPrevious">Previous</button>
         <small>Page {{ page }}</small>
         <button mat-stroked-button (click)="load(page + 1)" [disabled]="!hasNext">Next</button>
