@@ -49,7 +49,7 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
           <mat-datepicker #endPicker></mat-datepicker>
         </mat-form-field>
 
-        <mat-form-field><mat-label>Status</mat-label><input matInput formControlName="status" /></mat-form-field>
+        <mat-form-field><mat-label>Status</mat-label><mat-select formControlName="status"><mat-option value="ACTIVE">ACTIVE</mat-option><mat-option value="INACTIVE">INACTIVE</mat-option></mat-select></mat-form-field>
         <mat-form-field class="notes-field"><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="notes"></textarea></mat-form-field>
         <button mat-flat-button color="primary" [disabled]="form.invalid">{{ editingId ? 'Update' : 'Save' }}</button>
       </form>
@@ -94,7 +94,7 @@ export class TreatmentsComponent {
       indication: [''],
       start_date: [null as Date | null],
       end_date: [null as Date | null],
-      status: ['ACTIVE'],
+      status: ['ACTIVE', Validators.pattern(/^(ACTIVE|INACTIVE)$/)],
       notes: ['']
     },
     { validators: [dateRangeValidator('start_date', 'end_date')] }
