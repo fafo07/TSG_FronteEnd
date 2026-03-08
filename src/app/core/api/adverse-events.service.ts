@@ -4,16 +4,21 @@ import { Observable, map } from 'rxjs';
 
 import { environment } from '../config/environment';
 import { AdverseEvent } from '../../shared/models/models';
-import { PaginatedResponse } from '../../shared/models/pagination';
+import { PaginatedResponse, unwrapResults } from '../../shared/models/pagination';
 
 @Injectable({ providedIn: 'root' })
 export class AdverseEventsService {
   private http = inject(HttpClient);
 
   listByPatient(patientId: number): Observable<PaginatedResponse<AdverseEvent> | AdverseEvent[]> {
-    return this.http.get<AdverseEvent[]>(`${environment.apiBaseUrl}/patients/${patientId}/adverse-events`).pipe(
-      map((items) => items.map((item) => this.normalize(item)))
-    );
+    return this.http
+      .get<PaginatedResponse<AdverseEvent> | AdverseEvent[]>(`${environment.apiBaseUrl}/patients/${patientId}/adverse-events`)
+      .pipe(
+        map((data) => {
+          const normalized = unwrapResults(data).map((item) => this.normalize(item));
+          return Array.isArray(data) ? normalized : { ...data, results: normalized };
+        })
+      );
   }
 
   create(patientId: number, payload: Partial<AdverseEvent>): Observable<AdverseEvent> {

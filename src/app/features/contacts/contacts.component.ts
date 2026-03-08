@@ -59,6 +59,7 @@ type PatientContactListItem = Contact | {
       <app-error-state *ngIf="error" message="Failed to load contacts" (retry)="load()" />
       <app-empty-state *ngIf="!loading && !error && !contacts.length" message="No contacts linked" />
 
+      <h3 *ngIf="!loading && !error && contacts.length" class="section-title">Linked contacts</h3>
       <table *ngIf="!loading && !error && contacts.length" mat-table [dataSource]="contacts" class="full-width" style="margin-top:1rem">
         <ng-container matColumnDef="full_name"><th mat-header-cell *matHeaderCellDef>Name</th><td mat-cell *matCellDef="let item">{{ item.full_name }}</td></ng-container>
         <ng-container matColumnDef="email"><th mat-header-cell *matHeaderCellDef>Email</th><td mat-cell *matCellDef="let item">{{ item.email || '-' }}</td></ng-container>

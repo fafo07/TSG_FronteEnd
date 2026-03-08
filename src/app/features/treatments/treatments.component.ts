@@ -4,8 +4,10 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatNativeDateModule } from '@angular/material/core';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
 
@@ -21,19 +23,32 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, MatCardModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule, MatSelectModule, PatientTabsComponent, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent],
+  imports: [CommonModule, ReactiveFormsModule, MatCardModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule, MatSelectModule, MatDatepickerModule, MatNativeDateModule, PatientTabsComponent, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent],
   template: `
     <app-patient-tabs [patientId]="patientId" />
 
     <mat-card class="page-card">
       <h2>Treatments</h2>
       <form [formGroup]="form" (ngSubmit)="save()" class="form-grid form-grid-3">
-        <mat-form-field class="form-span-2"><mat-label>Manifestation</mat-label><mat-select formControlName="manifestation_id"><mat-option *ngFor="let m of manifestations" [value]="m.manifestation_id">{{ m.system_code }} · Evaluation {{ m.evaluation_date }}</mat-option></mat-select></mat-form-field>
+        <mat-form-field class="form-span-2"><mat-label>Manifestation</mat-label><mat-select formControlName="manifestation_id"><mat-option *ngFor="let m of manifestations" [value]="m.manifestation_id">{{ m.system || m.system_code }} · Evaluation {{ m.evaluation_date }}</mat-option></mat-select></mat-form-field>
         <mat-form-field><mat-label>Medication</mat-label><input matInput formControlName="medication" /></mat-form-field>
         <mat-form-field><mat-label>Dose</mat-label><input matInput formControlName="dose" /></mat-form-field>
         <mat-form-field><mat-label>Indication</mat-label><input matInput formControlName="indication" /></mat-form-field>
-        <mat-form-field><mat-label>Start date</mat-label><input matInput type="date" [max]="today" formControlName="start_date" /></mat-form-field>
-        <mat-form-field><mat-label>End date</mat-label><input matInput type="date" [max]="today" formControlName="end_date" /></mat-form-field>
+
+        <mat-form-field>
+          <mat-label>Start date</mat-label>
+          <input matInput [matDatepicker]="startPicker" [max]="today" formControlName="start_date" readonly />
+          <mat-datepicker-toggle matIconSuffix [for]="startPicker"></mat-datepicker-toggle>
+          <mat-datepicker #startPicker></mat-datepicker>
+        </mat-form-field>
+
+        <mat-form-field>
+          <mat-label>End date</mat-label>
+          <input matInput [matDatepicker]="endPicker" [max]="today" formControlName="end_date" readonly />
+          <mat-datepicker-toggle matIconSuffix [for]="endPicker"></mat-datepicker-toggle>
+          <mat-datepicker #endPicker></mat-datepicker>
+        </mat-form-field>
+
         <mat-form-field><mat-label>Status</mat-label><input matInput formControlName="status" /></mat-form-field>
         <mat-form-field class="notes-field"><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="notes"></textarea></mat-form-field>
         <button mat-flat-button color="primary" [disabled]="form.invalid">{{ editingId ? 'Update' : 'Save' }}</button>
@@ -45,10 +60,11 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
       <app-error-state *ngIf="error" message="Failed to load treatments" (retry)="load()" />
       <app-empty-state *ngIf="!loading && !error && !items.length" message="No treatments found" />
 
+      <h3 *ngIf="!loading && !error && items.length" class="section-title">Patient medications</h3>
       <table *ngIf="!loading && !error && items.length" mat-table [dataSource]="items" class="full-width" style="margin-top:1rem">
         <ng-container matColumnDef="medication"><th mat-header-cell *matHeaderCellDef>Medication</th><td mat-cell *matCellDef="let t">{{ t.medication }}</td></ng-container>
         <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>Status</th><td mat-cell *matCellDef="let t">{{ t.status || '-' }}</td></ng-container>
-        <ng-container matColumnDef="manifestation_id"><th mat-header-cell *matHeaderCellDef>Manifestation</th><td mat-cell *matCellDef="let t">{{ t.manifestation_id }}</td></ng-container>
+        <ng-container matColumnDef="manifestation_id"><th mat-header-cell *matHeaderCellDef>Manifestation</th><td mat-cell *matCellDef="let t">{{ manifestationLabel(t.manifestation_id) }}</td></ng-container>
         <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Actions</th><td mat-cell *matCellDef="let t"><button mat-button (click)="startEdit(t)">Edit</button><button mat-button color="warn" (click)="remove(t)">Delete</button></td></ng-container>
         <tr mat-header-row *matHeaderRowDef="columns"></tr><tr mat-row *matRowDef="let row; columns: columns"></tr>
       </table>
@@ -56,7 +72,7 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
   `
 })
 export class TreatmentsComponent {
-  today = new Date().toISOString().slice(0, 10);
+  today = new Date();
   private fb = inject(FormBuilder);
   private route = inject(ActivatedRoute);
   private service = inject(TreatmentsService);
@@ -76,8 +92,8 @@ export class TreatmentsComponent {
       medication: ['', Validators.required],
       dose: [''],
       indication: [''],
-      start_date: [''],
-      end_date: [''],
+      start_date: [null as Date | null],
+      end_date: [null as Date | null],
       status: ['ACTIVE'],
       notes: ['']
     },
@@ -104,9 +120,14 @@ export class TreatmentsComponent {
     });
   }
 
+  manifestationLabel(id: number): string {
+    const manifestation = this.manifestations.find((m) => m.manifestation_id === id);
+    return manifestation ? `${manifestation.system || manifestation.system_code} · ${manifestation.evaluation_date}` : `#${id}`;
+  }
+
   startEdit(item: Treatment): void {
     this.editingId = item.treatment_id;
-    this.form.patchValue({ ...item });
+    this.form.patchValue({ ...item, start_date: this.parseDate(item.start_date), end_date: this.parseDate(item.end_date) });
   }
 
   remove(item: Treatment): void {
@@ -123,8 +144,8 @@ export class TreatmentsComponent {
       medication: raw.medication ?? undefined,
       dose: raw.dose ?? undefined,
       indication: raw.indication ?? undefined,
-      start_date: raw.start_date ?? undefined,
-      end_date: raw.end_date ?? undefined,
+      start_date: this.formatDate(raw.start_date),
+      end_date: this.formatDate(raw.end_date),
       status: raw.status ?? undefined,
       notes: raw.notes ?? undefined
     };
@@ -132,14 +153,14 @@ export class TreatmentsComponent {
       medication: raw.medication ?? undefined,
       dose: raw.dose ?? undefined,
       indication: raw.indication ?? undefined,
-      start_date: raw.start_date ?? undefined,
-      end_date: raw.end_date ?? undefined,
+      start_date: this.formatDate(raw.start_date),
+      end_date: this.formatDate(raw.end_date),
       status: raw.status ?? undefined,
       notes: raw.notes ?? undefined
     };
 
     const done = () => {
-      this.form.reset({ manifestation_id: null, medication: '', dose: '', indication: '', start_date: '', end_date: '', status: 'ACTIVE', notes: '' });
+      this.form.reset({ manifestation_id: null, medication: '', dose: '', indication: '', start_date: null, end_date: null, status: 'ACTIVE', notes: '' });
       this.editingId = null;
       this.load();
     };
@@ -150,5 +171,20 @@ export class TreatmentsComponent {
     }
 
     this.service.create(this.patientId, Number(raw.manifestation_id), createPayload).subscribe(done);
+  }
+
+  private formatDate(value: Date | null | undefined): string | undefined {
+    if (!value) return undefined;
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  private parseDate(value?: string): Date | null {
+    if (!value) return null;
+    const [y, m, d] = value.split('-').map((n) => Number(n));
+    if (!y || !m || !d) return null;
+    return new Date(y, m - 1, d);
   }
 }

@@ -4,8 +4,10 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatNativeDateModule } from '@angular/material/core';
 import { MatTableModule } from '@angular/material/table';
 
 import { GeneticTestsService } from '../../core/api/genetic-tests.service';
@@ -19,7 +21,7 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, MatCardModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule, PatientTabsComponent, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent],
+  imports: [CommonModule, ReactiveFormsModule, MatCardModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule, MatDatepickerModule, MatNativeDateModule, PatientTabsComponent, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent],
   template: `
     <app-patient-tabs [patientId]="patientId" />
 
@@ -27,7 +29,12 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
       <h2>Genetic tests</h2>
       <form [formGroup]="form" (ngSubmit)="save()" class="form-grid form-grid-3">
         <mat-form-field><mat-label>Gene</mat-label><input matInput formControlName="gene" placeholder="TSC1 or TSC2" /></mat-form-field>
-        <mat-form-field><mat-label>Test date</mat-label><input matInput type="date" [max]="today" formControlName="test_date" /></mat-form-field>
+        <mat-form-field>
+          <mat-label>Test date</mat-label>
+          <input matInput [matDatepicker]="testDatePicker" [max]="today" formControlName="test_date" readonly />
+          <mat-datepicker-toggle matIconSuffix [for]="testDatePicker"></mat-datepicker-toggle>
+          <mat-datepicker #testDatePicker></mat-datepicker>
+        </mat-form-field>
         <mat-form-field><mat-label>Variant</mat-label><input matInput formControlName="variant" /></mat-form-field>
         <mat-form-field><mat-label>Laboratory</mat-label><input matInput formControlName="lab_name" /></mat-form-field>
         <mat-form-field class="notes-field"><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="notes"></textarea></mat-form-field>
@@ -39,6 +46,7 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
       <app-error-state *ngIf="error" message="Failed to load genetic tests" (retry)="load()" />
       <app-empty-state *ngIf="!loading && !error && !items.length" message="No genetic tests found" />
 
+      <h3 *ngIf="!loading && !error && items.length" class="section-title">Genetic tests list</h3>
       <table *ngIf="!loading && !error && items.length" mat-table [dataSource]="items" class="full-width">
         <ng-container matColumnDef="gene"><th mat-header-cell *matHeaderCellDef>Gene</th><td mat-cell *matCellDef="let i">{{ i.gene }}</td></ng-container>
         <ng-container matColumnDef="test_date"><th mat-header-cell *matHeaderCellDef>Date</th><td mat-cell *matCellDef="let i">{{ i.test_date || '-' }}</td></ng-container>
@@ -50,7 +58,7 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
   `
 })
 export class GeneticTestsComponent {
-  today = new Date().toISOString().slice(0, 10);
+  today = new Date();
   private fb = inject(FormBuilder);
   private route = inject(ActivatedRoute);
   private service = inject(GeneticTestsService);
@@ -63,7 +71,7 @@ export class GeneticTestsComponent {
   error = false;
 
   form = this.fb.group(
-    { gene: ['', Validators.required], test_date: [''], variant: [''], lab_name: [''], notes: [''] },
+    { gene: ['', Validators.required], test_date: [null as Date | null], variant: [''], lab_name: [''], notes: [''] },
     { validators: [geneValidator('gene')] }
   );
 
@@ -88,7 +96,7 @@ export class GeneticTestsComponent {
 
   startEdit(item: GeneticTest): void {
     this.editingId = item.test_id;
-    this.form.patchValue({ ...item });
+    this.form.patchValue({ ...item, test_date: this.parseDate(item.test_date) });
   }
 
   remove(item: GeneticTest): void {
@@ -103,14 +111,14 @@ export class GeneticTestsComponent {
     const gene: GeneticTest['gene'] | undefined = raw.gene === 'TSC1' || raw.gene === 'TSC2' ? raw.gene : undefined;
     const payload = {
       gene,
-      test_date: raw.test_date ?? undefined,
+      test_date: this.formatDate(raw.test_date),
       variant: raw.variant ?? undefined,
       lab_name: raw.lab_name ?? undefined,
       notes: raw.notes ?? undefined
     };
 
     const done = () => {
-      this.form.reset({ gene: '', test_date: '', variant: '', lab_name: '', notes: '' });
+      this.form.reset({ gene: '', test_date: null, variant: '', lab_name: '', notes: '' });
       this.editingId = null;
       this.load();
     };
@@ -121,5 +129,20 @@ export class GeneticTestsComponent {
     }
 
     this.service.create(this.patientId, payload).subscribe(done);
+  }
+
+  private formatDate(value: Date | null | undefined): string | undefined {
+    if (!value) return undefined;
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  private parseDate(value?: string): Date | null {
+    if (!value) return null;
+    const [y, m, d] = value.split('-').map((n) => Number(n));
+    if (!y || !m || !d) return null;
+    return new Date(y, m - 1, d);
   }
 }

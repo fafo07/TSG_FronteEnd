@@ -4,8 +4,10 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatNativeDateModule } from '@angular/material/core';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
 
@@ -20,7 +22,7 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, MatCardModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatButtonModule, MatTableModule, PatientTabsComponent, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent],
+  imports: [CommonModule, ReactiveFormsModule, MatCardModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatButtonModule, MatTableModule, MatDatepickerModule, MatNativeDateModule, PatientTabsComponent, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent],
   template: `
     <app-patient-tabs [patientId]="patientId" />
 
@@ -28,7 +30,12 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
       <h2>Adverse events</h2>
       <form [formGroup]="form" (ngSubmit)="save()" class="form-grid form-grid-3">
         <mat-form-field><mat-label>Event</mat-label><input matInput formControlName="event_name" /></mat-form-field>
-        <mat-form-field><mat-label>Event date</mat-label><input matInput type="date" [max]="today" formControlName="event_date" /></mat-form-field>
+        <mat-form-field>
+          <mat-label>Event date</mat-label>
+          <input matInput [matDatepicker]="eventDatePicker" [max]="today" formControlName="event_date" readonly />
+          <mat-datepicker-toggle matIconSuffix [for]="eventDatePicker"></mat-datepicker-toggle>
+          <mat-datepicker #eventDatePicker></mat-datepicker>
+        </mat-form-field>
         <mat-form-field><mat-label>Severity</mat-label><mat-select formControlName="severity"><mat-option value="MILD">Mild</mat-option><mat-option value="MODERATE">Moderate</mat-option><mat-option value="SEVERE">Severe</mat-option><mat-option value="LIFE_THREATENING">Life-threatening</mat-option></mat-select></mat-form-field>
         <mat-form-field><mat-label>Action taken</mat-label><input matInput formControlName="action_taken" /></mat-form-field>
         <mat-form-field><mat-label>Treatment (optional)</mat-label><mat-select formControlName="treatment_id"><mat-option [value]="null">No link</mat-option><mat-option *ngFor="let t of treatments" [value]="t.treatment_id">#{{ t.treatment_id }} - {{ t.medication }}</mat-option></mat-select></mat-form-field>
@@ -40,6 +47,7 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
       <app-error-state *ngIf="error" message="Failed to load adverse events" (retry)="load()" />
       <app-empty-state *ngIf="!loading && !error && !items.length" message="No adverse events found" />
 
+      <h3 *ngIf="!loading && !error && items.length" class="section-title">Adverse events list</h3>
       <table *ngIf="!loading && !error && items.length" mat-table [dataSource]="items" class="full-width" style="margin-top:1rem">
         <ng-container matColumnDef="event_name"><th mat-header-cell *matHeaderCellDef>Event</th><td mat-cell *matCellDef="let item">{{ item.event_name }}</td></ng-container>
         <ng-container matColumnDef="event_date"><th mat-header-cell *matHeaderCellDef>Date</th><td mat-cell *matCellDef="let item">{{ item.event_date }}</td></ng-container>
@@ -52,7 +60,7 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
   `
 })
 export class AdverseEventsComponent {
-  today = new Date().toISOString().slice(0, 10);
+  today = new Date();
   private fb = inject(FormBuilder);
   private route = inject(ActivatedRoute);
   private service = inject(AdverseEventsService);
@@ -68,7 +76,7 @@ export class AdverseEventsComponent {
 
   form = this.fb.group({
     event_name: ['', Validators.required],
-    event_date: ['', Validators.required],
+    event_date: [null as Date | null, Validators.required],
     severity: ['MILD'],
     action_taken: [''],
     notes: [''],
@@ -97,7 +105,7 @@ export class AdverseEventsComponent {
 
   startEdit(item: AdverseEvent): void {
     this.editingId = item.ae_id;
-    this.form.patchValue({ ...item, treatment_id: item.treatment_id ?? item.treatment ?? null });
+    this.form.patchValue({ ...item, event_date: this.parseDate(item.event_date), treatment_id: item.treatment_id ?? item.treatment ?? null });
   }
 
   resolveTreatmentLabel(item: AdverseEvent): string {
@@ -117,7 +125,7 @@ export class AdverseEventsComponent {
     const raw = this.form.getRawValue();
     const payload = {
       event_name: raw.event_name ?? undefined,
-      event_date: raw.event_date ?? undefined,
+      event_date: this.formatDate(raw.event_date),
       severity: raw.severity ?? undefined,
       action_taken: raw.action_taken ?? undefined,
       notes: raw.notes ?? undefined,
@@ -125,7 +133,7 @@ export class AdverseEventsComponent {
     };
 
     const done = () => {
-      this.form.reset({ event_name: '', event_date: '', severity: 'MILD', action_taken: '', notes: '', treatment_id: null });
+      this.form.reset({ event_name: '', event_date: null, severity: 'MILD', action_taken: '', notes: '', treatment_id: null });
       this.editingId = null;
       this.load();
     };
@@ -136,5 +144,20 @@ export class AdverseEventsComponent {
     }
 
     this.service.create(this.patientId, payload).subscribe(done);
+  }
+
+  private formatDate(value: Date | null | undefined): string | undefined {
+    if (!value) return undefined;
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  private parseDate(value?: string): Date | null {
+    if (!value) return null;
+    const [y, m, d] = value.split('-').map((n) => Number(n));
+    if (!y || !m || !d) return null;
+    return new Date(y, m - 1, d);
   }
 }

@@ -4,7 +4,7 @@ import { Observable, map } from 'rxjs';
 
 import { environment } from '../config/environment';
 import { Manifestation } from '../../shared/models/models';
-import { PaginatedResponse } from '../../shared/models/pagination';
+import { PaginatedResponse, unwrapResults } from '../../shared/models/pagination';
 
 @Injectable({ providedIn: 'root' })
 export class ManifestationsService {
@@ -15,9 +15,15 @@ export class ManifestationsService {
     if (system_code) params = params.set('system', system_code);
     if (from) params = params.set('from', from);
     if (to) params = params.set('to', to);
-    return this.http.get<Manifestation[]>(`${environment.apiBaseUrl}/patients/${patientId}/manifestations`, { params }).pipe(
-      map((items) => items.map((item) => this.normalize(item)))
-    );
+
+    return this.http
+      .get<PaginatedResponse<Manifestation> | Manifestation[]>(`${environment.apiBaseUrl}/patients/${patientId}/manifestations`, { params })
+      .pipe(
+        map((data) => {
+          const normalized = unwrapResults(data).map((item) => this.normalize(item));
+          return Array.isArray(data) ? normalized : { ...data, results: normalized };
+        })
+      );
   }
 
   create(patientId: number, payload: Partial<Manifestation>): Observable<Manifestation> {

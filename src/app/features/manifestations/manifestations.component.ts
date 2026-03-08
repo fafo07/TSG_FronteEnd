@@ -4,8 +4,10 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatNativeDateModule } from '@angular/material/core';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
 
@@ -20,7 +22,7 @@ import { LoadingStateComponent } from '../../shared/ui/loading-state.component';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, MatCardModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule, MatSelectModule, PatientTabsComponent, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, MatCardModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule, MatSelectModule, MatDatepickerModule, MatNativeDateModule, PatientTabsComponent, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent],
   template: `
     <app-patient-tabs [patientId]="patientId" />
 
@@ -28,17 +30,22 @@ import { LoadingStateComponent } from '../../shared/ui/loading-state.component';
       <h2>Patient manifestations</h2>
 
       <form [formGroup]="form" (ngSubmit)="save()" class="form-grid form-grid-3">
-        <mat-form-field><mat-label>Evaluation date</mat-label><input matInput type="date" [max]="today" formControlName="evaluation_date" /></mat-form-field>
+        <mat-form-field>
+          <mat-label>Evaluation date</mat-label>
+          <input matInput [matDatepicker]="evaluationPicker" [max]="today" formControlName="evaluation_date" readonly />
+          <mat-datepicker-toggle matIconSuffix [for]="evaluationPicker"></mat-datepicker-toggle>
+          <mat-datepicker #evaluationPicker></mat-datepicker>
+        </mat-form-field>
         <mat-form-field><mat-label>System</mat-label><mat-select formControlName="system_code"><mat-option *ngFor="let s of systems" [value]="s.system_code">{{ s.system_name }}</mat-option></mat-select></mat-form-field>
         <mat-form-field class="notes-field"><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="notes"></textarea></mat-form-field>
         <button mat-flat-button color="primary" [disabled]="form.invalid">{{ editingId ? 'Update' : 'Save' }}</button>
       </form>
 
-
       <app-loading-state *ngIf="loading" />
       <app-error-state *ngIf="error" message="Failed to load manifestations" (retry)="load()" />
       <app-empty-state *ngIf="!loading && !error && !items.length" message="No manifestations found" />
 
+      <h3 *ngIf="!loading && !error && items.length" class="section-title">Manifestations list</h3>
       <table *ngIf="!loading && !error && items.length" mat-table [dataSource]="items" class="full-width" style="margin-top:1rem">
         <ng-container matColumnDef="evaluation_date"><th mat-header-cell *matHeaderCellDef>Date</th><td mat-cell *matCellDef="let m">{{ m.evaluation_date || '-' }}</td></ng-container>
         <ng-container matColumnDef="system_code"><th mat-header-cell *matHeaderCellDef>System</th><td mat-cell *matCellDef="let m">{{ m.system || m.system_code }}</td></ng-container>
@@ -50,7 +57,7 @@ import { LoadingStateComponent } from '../../shared/ui/loading-state.component';
   `
 })
 export class ManifestationsComponent {
-  today = new Date().toISOString().slice(0, 10);
+  today = new Date();
   private fb = inject(FormBuilder);
   private route = inject(ActivatedRoute);
   private service = inject(ManifestationsService);
@@ -65,7 +72,7 @@ export class ManifestationsComponent {
   error = false;
 
   form = this.fb.group({
-    evaluation_date: ['', Validators.required],
+    evaluation_date: [null as Date | null, Validators.required],
     system_code: ['', Validators.required],
     notes: ['']
   });
@@ -92,16 +99,16 @@ export class ManifestationsComponent {
 
   edit(item: Manifestation): void {
     this.editingId = item.manifestation_id;
-    this.form.patchValue({ evaluation_date: item.evaluation_date, system_code: item.system_code || item.system || '', notes: item.notes ?? '' });
+    this.form.patchValue({ evaluation_date: this.parseDate(item.evaluation_date), system_code: item.system_code || item.system || '', notes: item.notes ?? '' });
   }
 
   save(): void {
     if (this.form.invalid) return;
     const raw = this.form.getRawValue();
-    const payload = { evaluation_date: raw.evaluation_date ?? undefined, system_code: raw.system_code ?? undefined, notes: raw.notes ?? undefined };
+    const payload = { evaluation_date: this.formatDate(raw.evaluation_date), system_code: raw.system_code ?? undefined, notes: raw.notes ?? undefined };
 
     const done = () => {
-      this.form.reset({ evaluation_date: '', system_code: '', notes: '' });
+      this.form.reset({ evaluation_date: null, system_code: '', notes: '' });
       this.editingId = null;
       this.load();
     };
@@ -112,5 +119,20 @@ export class ManifestationsComponent {
     }
 
     this.service.create(this.patientId, payload).subscribe(done);
+  }
+
+  private formatDate(value: Date | null | undefined): string | undefined {
+    if (!value) return undefined;
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  private parseDate(value?: string): Date | null {
+    if (!value) return null;
+    const [y, m, d] = value.split('-').map((n) => Number(n));
+    if (!y || !m || !d) return null;
+    return new Date(y, m - 1, d);
   }
 }
