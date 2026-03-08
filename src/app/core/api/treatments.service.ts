@@ -1,17 +1,24 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 
 import { environment } from '../config/environment';
 import { Treatment } from '../../shared/models/models';
-import { PaginatedResponse } from '../../shared/models/pagination';
+import { PaginatedResponse, unwrapResults } from '../../shared/models/pagination';
 
 @Injectable({ providedIn: 'root' })
 export class TreatmentsService {
   private http = inject(HttpClient);
 
   listByPatient(patientId: number): Observable<PaginatedResponse<Treatment> | Treatment[]> {
-    return this.http.get<Treatment[]>(`${environment.apiBaseUrl}/patients/${patientId}/treatments`);
+    return this.http
+      .get<PaginatedResponse<Treatment> | Treatment[]>(`${environment.apiBaseUrl}/patients/${patientId}/treatments`)
+      .pipe(
+        map((data) => {
+          const list = unwrapResults(data);
+          return Array.isArray(data) ? list : { ...data, results: list };
+        })
+      );
   }
 
   create(patientId: number, manifestationId: number, treatment: Partial<Treatment>): Observable<Treatment> {

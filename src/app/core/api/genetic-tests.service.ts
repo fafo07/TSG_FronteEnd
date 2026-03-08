@@ -1,17 +1,24 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 
 import { environment } from '../config/environment';
 import { GeneticTest } from '../../shared/models/models';
-import { PaginatedResponse } from '../../shared/models/pagination';
+import { PaginatedResponse, unwrapResults } from '../../shared/models/pagination';
 
 @Injectable({ providedIn: 'root' })
 export class GeneticTestsService {
   private http = inject(HttpClient);
 
   listByPatient(patientId: number): Observable<PaginatedResponse<GeneticTest> | GeneticTest[]> {
-    return this.http.get<GeneticTest[]>(`${environment.apiBaseUrl}/patients/${patientId}/genetic-tests`);
+    return this.http
+      .get<PaginatedResponse<GeneticTest> | GeneticTest[]>(`${environment.apiBaseUrl}/patients/${patientId}/genetic-tests`)
+      .pipe(
+        map((data) => {
+          const list = unwrapResults(data);
+          return Array.isArray(data) ? list : { ...data, results: list };
+        })
+      );
   }
 
   create(patientId: number, payload: Partial<GeneticTest>): Observable<GeneticTest> {

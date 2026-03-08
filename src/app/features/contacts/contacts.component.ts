@@ -102,8 +102,20 @@ export class ContactsComponent {
   load(): void {
     this.loading = true;
     this.error = false;
-    this.service.listByPatient(this.patientId).pipe(
-      map((data) => unwrapResults(data).map((item) => this.normalizeContact(item as PatientContactListItem))),
+
+    forkJoin({
+      patientContacts: this.service.listByPatient(this.patientId),
+      contactsCatalog: this.service.list(1)
+    }).pipe(
+      map(({ patientContacts, contactsCatalog }) => {
+        const links = unwrapResults(patientContacts).map((item) => this.normalizeContact(item as PatientContactListItem));
+        const catalog = unwrapResults(contactsCatalog);
+        const catalogById = new Map(catalog.map((item) => [item.contact_id, item]));
+        return links.map((link) => {
+          const fromCatalog = catalogById.get(link.contact_id);
+          return fromCatalog ? { ...fromCatalog, is_primary: link.is_primary } : link;
+        });
+      }),
       switchMap((contacts) => {
         const missingDetails = contacts.filter((contact) => !contact.full_name?.trim() && contact.contact_id > 0);
         if (!missingDetails.length) return of(contacts);
