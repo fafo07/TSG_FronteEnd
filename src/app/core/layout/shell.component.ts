@@ -15,7 +15,7 @@ import { AuthService } from '../auth/auth.service';
   template: `
   <mat-sidenav-container style="height:100vh">
     <mat-sidenav #sidenav [mode]="isMobile ? 'over' : 'side'" [opened]="!isMobile" class="app-sidebar">
-      <h3 class="app-brand">Dashboard</h3>
+      <h3 class="app-brand">TSC Registry</h3>
       <mat-nav-list>
         <a mat-list-item routerLink="/dashboard" routerLinkActive="is-active" (click)="closeOnMobile(sidenav)">Dashboard</a>
         <a mat-list-item routerLink="/patients" routerLinkActive="is-active" (click)="closeOnMobile(sidenav)">Patients</a>

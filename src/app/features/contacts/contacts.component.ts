@@ -103,33 +103,17 @@ export class ContactsComponent {
     this.loading = true;
     this.error = false;
 
-    forkJoin({
-      patientContacts: this.service.listByPatient(this.patientId),
-      contactsCatalog: this.service.list(1)
-    }).pipe(
-      map(({ patientContacts, contactsCatalog }) => {
-        const links = unwrapResults(patientContacts).map((item) => this.normalizeContact(item as PatientContactListItem));
-        const catalog = unwrapResults(contactsCatalog);
-        const catalogById = new Map(catalog.map((item) => [item.contact_id, item]));
-        return links.map((link) => {
-          const fromCatalog = catalogById.get(link.contact_id);
-          return fromCatalog ? { ...fromCatalog, is_primary: link.is_primary } : link;
-        });
-      }),
-      switchMap((contacts) => {
-        const missingDetails = contacts.filter((contact) => !contact.full_name?.trim() && contact.contact_id > 0);
-        if (!missingDetails.length) return of(contacts);
+    this.service.listByPatient(this.patientId).pipe(
+      map((response) => unwrapResults(response).map((item) => this.normalizeContact(item as PatientContactListItem))),
+      switchMap((relations) => {
+        if (!relations.length) return of([] as Contact[]);
 
-        return forkJoin(
-          missingDetails.map((item) =>
-            this.service.getById(item.contact_id).pipe(map((resolved) => ({ id: item.contact_id, resolved })))
-          )
-        ).pipe(
-          map((resolvedContacts) => {
-            const resolvedById = new Map(resolvedContacts.map((entry) => [entry.id, entry.resolved]));
-            return contacts.map((contact) => resolvedById.get(contact.contact_id) ? { ...resolvedById.get(contact.contact_id)!, is_primary: contact.is_primary } : contact);
-          })
-        );
+        const detailCalls = relations.map((relation) => {
+          if (relation.full_name?.trim()) return of(relation);
+          return this.service.getById(relation.contact_id).pipe(map((contact) => ({ ...contact, is_primary: relation.is_primary })));
+        });
+
+        return forkJoin(detailCalls);
       })
     ).subscribe({
       next: (contacts) => {
