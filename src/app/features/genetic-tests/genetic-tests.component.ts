@@ -8,6 +8,7 @@ import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatNativeDateModule } from '@angular/material/core';
+import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
 
 import { GeneticTestsService } from '../../core/api/genetic-tests.service';
@@ -21,14 +22,14 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, MatCardModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule, MatDatepickerModule, MatNativeDateModule, PatientTabsComponent, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent],
+  imports: [CommonModule, ReactiveFormsModule, MatCardModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule, MatDatepickerModule, MatNativeDateModule, MatSelectModule, PatientTabsComponent, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent],
   template: `
     <app-patient-tabs [patientId]="patientId" />
 
     <mat-card class="page-card">
       <h2>Genetic tests</h2>
       <form [formGroup]="form" (ngSubmit)="save()" class="form-grid form-grid-3">
-        <mat-form-field><mat-label>Gene</mat-label><input matInput formControlName="gene" placeholder="TSC1 or TSC2" /></mat-form-field>
+        <mat-form-field><mat-label>Gene</mat-label><mat-select formControlName="gene"><mat-option value="TSC1">TSC1</mat-option><mat-option value="TSC2">TSC2</mat-option></mat-select></mat-form-field>
         <mat-form-field>
           <mat-label>Test date</mat-label>
           <input matInput [matDatepicker]="testDatePicker" [max]="today" formControlName="test_date" readonly />

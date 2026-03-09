@@ -50,6 +50,7 @@ import { diagnosisAfterBirthValidator } from '../../shared/validators/domain.val
 
       <mat-form-field class="notes-field"><mat-label>Family history</mat-label><textarea matInput rows="5" formControlName="family_history"></textarea></mat-form-field>
 
+      <ng-content select="[extra-fields]"></ng-content>
       <div style="grid-column:1/-1;display:flex;justify-content:flex-end;gap:.75rem">
         <button mat-stroked-button type="button" (click)="cancel.emit()">Cancel</button>
         <button mat-flat-button color="primary" [disabled]="form.invalid">Save</button>

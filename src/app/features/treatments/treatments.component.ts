@@ -31,7 +31,7 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
 
     <mat-card class="page-card">
       <h2>Treatments</h2>
-      <p style="margin-top:-.25rem;color:#475569">Patient #{{ patientId }} · Treatments must be created from a manifestation context.</p>
+      <p style="margin-top:-.25rem;color:#475569">Patient #{{ patientId }} · Treatments are created from a manifestation context.</p>
 
       <div *ngIf="selectedManifestationId; else noManifestationContext" style="margin:.5rem 0 1rem;padding:.6rem .75rem;border-radius:.5rem;background:#EFF6FF;color:#1E3A8A;display:inline-block">
         Creating treatment for manifestation: {{ manifestationLabel(selectedManifestationId) }}
@@ -82,10 +82,14 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
 
       <h3 *ngIf="!loading && !error && items.length" class="section-title">Patient medications</h3>
       <table *ngIf="!loading && !error && items.length" mat-table [dataSource]="items" class="full-width" style="margin-top:1rem">
-        <ng-container matColumnDef="medication"><th mat-header-cell *matHeaderCellDef>Medication</th><td mat-cell *matCellDef="let t">{{ t.medication }}</td></ng-container>
-        <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>Status</th><td mat-cell *matCellDef="let t">{{ t.status || '-' }}</td></ng-container>
         <ng-container matColumnDef="manifestation"><th mat-header-cell *matHeaderCellDef>Manifestation</th><td mat-cell *matCellDef="let t">{{ manifestationLabel(t.manifestation_id) }}</td></ng-container>
-        <ng-container matColumnDef="finding"><th mat-header-cell *matHeaderCellDef>Finding</th><td mat-cell *matCellDef="let t">{{ findingLabel(t.manifestation_id) }}</td></ng-container>
+        <ng-container matColumnDef="findings"><th mat-header-cell *matHeaderCellDef>Findings</th><td mat-cell *matCellDef="let t">{{ findingsLabel(t.manifestation_id) }}</td></ng-container>
+        <ng-container matColumnDef="medication"><th mat-header-cell *matHeaderCellDef>Medication</th><td mat-cell *matCellDef="let t">{{ t.medication }}</td></ng-container>
+        <ng-container matColumnDef="dose"><th mat-header-cell *matHeaderCellDef>Dose</th><td mat-cell *matCellDef="let t">{{ t.dose || '-' }}</td></ng-container>
+        <ng-container matColumnDef="indication"><th mat-header-cell *matHeaderCellDef>Indication</th><td mat-cell *matCellDef="let t">{{ t.indication || '-' }}</td></ng-container>
+        <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>Status</th><td mat-cell *matCellDef="let t">{{ t.status || '-' }}</td></ng-container>
+        <ng-container matColumnDef="dates"><th mat-header-cell *matHeaderCellDef>Dates</th><td mat-cell *matCellDef="let t">{{ t.start_date || '-' }} → {{ t.end_date || '-' }}</td></ng-container>
+        <ng-container matColumnDef="notes"><th mat-header-cell *matHeaderCellDef>Notes</th><td mat-cell *matCellDef="let t">{{ t.notes || '-' }}</td></ng-container>
         <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Actions</th><td mat-cell *matCellDef="let t"><button mat-button (click)="startEdit(t)">Edit</button><button mat-button color="warn" (click)="remove(t)">Delete</button></td></ng-container>
         <tr mat-header-row *matHeaderRowDef="columns"></tr><tr mat-row *matRowDef="let row; columns: columns"></tr>
       </table>
@@ -105,9 +109,9 @@ export class TreatmentsComponent {
   selectedManifestationId = Number(this.route.snapshot.queryParamMap.get('manifestationId')) || null;
   items: Treatment[] = [];
   manifestations: Manifestation[] = [];
-  findingsCatalogByCode: Record<string, FindingCatalog> = {};
-  findingLabelByManifestationId: Record<number, string> = {};
-  columns = ['medication', 'status', 'manifestation', 'finding', 'actions'];
+  findingsByCode: Record<string, FindingCatalog> = {};
+  findingsLabelByManifestationId: Record<number, string> = {};
+  columns = ['manifestation', 'findings', 'medication', 'dose', 'indication', 'status', 'dates', 'notes', 'actions'];
   editingId: number | null = null;
   loading = false;
   error = false;
@@ -126,12 +130,7 @@ export class TreatmentsComponent {
   );
 
   constructor() {
-    this.findingsCatalogService.list(1).subscribe((response) => {
-      response.results.forEach((finding) => {
-        this.findingsCatalogByCode[finding.finding_code] = finding;
-      });
-    });
-
+    this.loadAllFindings(1);
     this.manifestationsService.listByPatient(this.patientId).subscribe((data) => {
       this.manifestations = unwrapResults(data);
       this.loadFindingsContext();
@@ -159,8 +158,8 @@ export class TreatmentsComponent {
     return manifestation ? `${manifestation.system || manifestation.system_code} · ${manifestation.evaluation_date}` : `#${id}`;
   }
 
-  findingLabel(manifestationId: number): string {
-    return this.findingLabelByManifestationId[manifestationId] ?? '-';
+  findingsLabel(manifestationId: number): string {
+    return this.findingsLabelByManifestationId[manifestationId] ?? '-';
   }
 
   startEdit(item: Treatment): void {
@@ -203,17 +202,28 @@ export class TreatmentsComponent {
     this.service.create(this.patientId, Number(this.selectedManifestationId), payload).subscribe(done);
   }
 
+  private loadAllFindings(page: number): void {
+    this.findingsCatalogService.list(page).subscribe({
+      next: (response) => {
+        response.results.forEach((finding) => {
+          this.findingsByCode[finding.finding_code] = finding;
+        });
+        if (response.next) this.loadAllFindings(page + 1);
+      }
+    });
+  }
+
   private loadFindingsContext(): void {
-    this.findingLabelByManifestationId = {};
+    this.findingsLabelByManifestationId = {};
     this.manifestations.forEach((manifestation) => {
       this.manifestationFindingsService.get(manifestation.manifestation_id).subscribe((findings) => {
-        const selected = findings.find((f) => f.is_present);
-        if (!selected) {
-          this.findingLabelByManifestationId[manifestation.manifestation_id] = '-';
+        const codes = findings.filter((f) => f.is_present).map((f) => f.finding_code);
+        if (!codes.length) {
+          this.findingsLabelByManifestationId[manifestation.manifestation_id] = '-';
           return;
         }
-        const catalog = this.findingsCatalogByCode[selected.finding_code];
-        this.findingLabelByManifestationId[manifestation.manifestation_id] = catalog ? `${catalog.finding_name} (${selected.finding_code})` : selected.finding_code;
+        const labels = codes.map((code) => this.findingsByCode[code]?.finding_name ?? code);
+        this.findingsLabelByManifestationId[manifestation.manifestation_id] = labels.join(', ');
       });
     });
   }
