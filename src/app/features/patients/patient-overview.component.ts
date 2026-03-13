@@ -24,7 +24,6 @@ type PatientContactRelation = { patient?: number; contact?: number | Contact; co
       <div class="detail-header">
         <h2 style="margin:0">{{ p.full_name }}</h2>
         <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-          <button mat-stroked-button [routerLink]="['/patients']">Back to patients</button>
           <button mat-flat-button color="primary" [routerLink]="['/patients', patientId, 'edit']">Edit patient details</button>
         </div>
       </div>

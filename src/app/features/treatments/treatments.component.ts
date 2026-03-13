@@ -176,6 +176,13 @@ export class TreatmentsComponent {
       notes: raw.notes ?? undefined
     };
 
+    console.log('Payload enviado a la API:', {
+      ...payload,
+      patient: this.patientId,
+      manifestation_id: this.selectedManifestationId,
+      treatment_id: this.selectedTreatmentId
+    });
+
     const done = () => {
       this.saving = false;
       this.load();

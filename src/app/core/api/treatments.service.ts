@@ -22,11 +22,14 @@ export class TreatmentsService {
   }
 
   create(patientId: number, manifestationId: number, treatment: Partial<Treatment>): Observable<Treatment> {
-    return this.http.post<Treatment>(`${environment.apiBaseUrl}/patients/${patientId}/manifestations/${manifestationId}/treatments`, treatment);
+    return this.http.post<Treatment>(
+      `${environment.apiBaseUrl}/patients/${patientId}/manifestations/${manifestationId}/treatments`,
+      this.toApiPayload({ ...treatment, patient_id: patientId, manifestation_id: manifestationId })
+    );
   }
 
   update(treatmentId: number, payload: Partial<Treatment>): Observable<Treatment> {
-    return this.http.put<Treatment>(`${environment.apiBaseUrl}/treatments/${treatmentId}`, payload);
+    return this.http.put<Treatment>(`${environment.apiBaseUrl}/treatments/${treatmentId}`, this.toApiPayload(payload));
   }
 
   delete(treatmentId: number): Observable<void> {
@@ -39,6 +42,27 @@ export class TreatmentsService {
       ...anyItem,
       manifestation_id: anyItem.manifestation_id ?? anyItem.manifestation ?? 0,
       patient_id: anyItem.patient_id ?? anyItem.patient ?? 0
+    };
+  }
+
+  private toApiPayload(payload: Partial<Treatment>): Partial<Treatment> & { patient?: number; manifestation_id?: number | null } {
+    const optionalText = (value?: string | null): string | null | undefined => {
+      if (value === undefined) return undefined;
+      if (value === null) return null;
+      const trimmed = value.trim();
+      return trimmed ? trimmed : null;
+    };
+
+    return {
+      medication: optionalText(payload.medication) ?? '',
+      dose: optionalText(payload.dose),
+      indication: optionalText(payload.indication),
+      start_date: payload.start_date ?? null,
+      end_date: payload.end_date ?? null,
+      status: optionalText(payload.status),
+      notes: optionalText(payload.notes),
+      patient: payload.patient_id,
+      manifestation_id: payload.manifestation_id ?? null
     };
   }
 }
