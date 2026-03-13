@@ -22,14 +22,17 @@ export class TreatmentsService {
   }
 
   create(patientId: number, manifestationId: number, treatment: Partial<Treatment>): Observable<Treatment> {
-    return this.http.post<Treatment>(
-      `${environment.apiBaseUrl}/patients/${patientId}/manifestations/${manifestationId}/treatments`,
-      this.toApiPayload({ ...treatment, patient_id: patientId, manifestation_id: manifestationId })
-    );
+    const body = this.toApiPayload({ ...treatment, patient_id: patientId, manifestation_id: manifestationId });
+    console.log('Payload enviado a la API:', body);
+    console.log('Payload JSON:', JSON.stringify(body, null, 2));
+    return this.http.post<Treatment>(`${environment.apiBaseUrl}/patients/${patientId}/manifestations/${manifestationId}/treatments`, body);
   }
 
   update(treatmentId: number, payload: Partial<Treatment>): Observable<Treatment> {
-    return this.http.put<Treatment>(`${environment.apiBaseUrl}/treatments/${treatmentId}`, this.toApiPayload(payload));
+    const body = this.toApiPayload(payload);
+    console.log('Payload enviado a la API:', body);
+    console.log('Payload JSON:', JSON.stringify(body, null, 2));
+    return this.http.put<Treatment>(`${environment.apiBaseUrl}/treatments/${treatmentId}`, body);
   }
 
   delete(treatmentId: number): Observable<void> {
@@ -45,24 +48,22 @@ export class TreatmentsService {
     };
   }
 
-  private toApiPayload(payload: Partial<Treatment>): Partial<Treatment> & { patient?: number; manifestation_id?: number | null } {
-    const optionalText = (value?: string | null): string | null | undefined => {
-      if (value === undefined) return undefined;
-      if (value === null) return null;
-      const trimmed = value.trim();
-      return trimmed ? trimmed : null;
+  private toApiPayload(payload: Partial<Treatment>): Partial<Treatment> & { patient?: number; manifestation_id?: number } {
+    const optionalText = (value?: string | null): string | undefined => {
+      const trimmed = value?.trim();
+      return trimmed ? trimmed : undefined;
     };
 
     return {
       medication: optionalText(payload.medication) ?? '',
       dose: optionalText(payload.dose),
       indication: optionalText(payload.indication),
-      start_date: payload.start_date ?? null,
-      end_date: payload.end_date ?? null,
+      start_date: payload.start_date ?? undefined,
+      end_date: payload.end_date ?? undefined,
       status: optionalText(payload.status),
       notes: optionalText(payload.notes),
       patient: payload.patient_id,
-      manifestation_id: payload.manifestation_id ?? null
+      manifestation_id: payload.manifestation_id ?? undefined
     };
   }
 }
