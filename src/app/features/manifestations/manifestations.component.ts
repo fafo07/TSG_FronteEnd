@@ -71,7 +71,13 @@ import { LoadingStateComponent } from '../../shared/ui/loading-state.component';
         <ng-container matColumnDef="findings"><th mat-header-cell *matHeaderCellDef>Findings</th><td mat-cell *matCellDef="let m">{{ findingsLabelByManifestation[m.manifestation_id] || '-' }}</td></ng-container>
         <ng-container matColumnDef="has_treatment"><th mat-header-cell *matHeaderCellDef>Treatment</th><td mat-cell *matCellDef="let m"><span class="status-badge" [class.status-badge-active]="hasTreatment(m.manifestation_id)">{{ hasTreatment(m.manifestation_id) ? 'Has treatment' : 'No treatment' }}</span></td></ng-container>
         <ng-container matColumnDef="notes"><th mat-header-cell *matHeaderCellDef>Notes</th><td mat-cell *matCellDef="let m">{{ m.notes || '-' }}</td></ng-container>
-        <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Actions</th><td mat-cell *matCellDef="let m"><button mat-button color="primary" [routerLink]="['/patients', patientId, 'treatments']" [queryParams]="{ manifestationId: m.manifestation_id }">Add treatment</button> <button mat-button (click)="edit(m)">Edit</button></td></ng-container>
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef>Actions</th>
+          <td mat-cell *matCellDef="let m">
+            <button mat-button color="primary" [routerLink]="['/patients', patientId, 'treatments']" [queryParams]="treatmentActionParams(m.manifestation_id)">{{ hasTreatment(m.manifestation_id) ? 'Edit treatment' : 'Add treatment' }}</button>
+            <button mat-button (click)="edit(m)">Edit</button>
+          </td>
+        </ng-container>
         <tr mat-header-row *matHeaderRowDef="columns"></tr><tr mat-row *matRowDef="let row; columns: columns"></tr>
       </table>
     </mat-card>
@@ -98,7 +104,7 @@ export class ManifestationsComponent {
   editingId: number | null = null;
   loading = false;
   error = false;
-  treatmentsByManifestation: Record<number, boolean> = {};
+  treatmentIdByManifestation: Record<number, number> = {};
   findingsLabelByManifestation: Record<number, string> = {};
 
   form = this.fb.group({
@@ -139,7 +145,12 @@ export class ManifestationsComponent {
   }
 
   hasTreatment(manifestationId: number): boolean {
-    return !!this.treatmentsByManifestation[manifestationId];
+    return manifestationId in this.treatmentIdByManifestation;
+  }
+
+  treatmentActionParams(manifestationId: number): { manifestationId: number; treatmentId?: number } {
+    const treatmentId = this.treatmentIdByManifestation[manifestationId];
+    return treatmentId ? { manifestationId, treatmentId } : { manifestationId };
   }
 
   edit(item: Manifestation): void {
@@ -195,9 +206,9 @@ export class ManifestationsComponent {
 
   private loadTreatmentIndicators(): void {
     this.treatmentsService.listByPatient(this.patientId).subscribe((response) => {
-      this.treatmentsByManifestation = {};
+      this.treatmentIdByManifestation = {};
       unwrapResults(response).forEach((treatment) => {
-        this.treatmentsByManifestation[treatment.manifestation_id] = true;
+        if (treatment.manifestation_id) this.treatmentIdByManifestation[treatment.manifestation_id] = treatment.treatment_id;
       });
     });
   }

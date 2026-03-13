@@ -1,7 +1,14 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatNativeDateModule } from '@angular/material/core';
+import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
 import { catchError, forkJoin, map, of } from 'rxjs';
 
@@ -11,6 +18,7 @@ import { ManifestationsService } from '../../core/api/manifestations.service';
 import { TreatmentsService } from '../../core/api/treatments.service';
 import { FindingCatalog, Manifestation, Treatment } from '../../shared/models/models';
 import { unwrapResults } from '../../shared/models/pagination';
+import { dateRangeValidator } from '../../shared/validators/date-range.validator';
 import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
 import { ErrorStateComponent } from '../../shared/ui/error-state.component';
 import { LoadingStateComponent } from '../../shared/ui/loading-state.component';
@@ -18,13 +26,47 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, MatCardModule, MatTableModule, PatientTabsComponent, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent],
+  imports: [CommonModule, ReactiveFormsModule, MatCardModule, MatTableModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatDatepickerModule, MatNativeDateModule, PatientTabsComponent, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent],
   template: `
     <app-patient-tabs [patientId]="patientId" />
 
     <mat-card class="page-card">
       <h2>Treatments</h2>
-      <p style="margin-top:-.25rem;color:#475569">Read-only review of patient medications. New treatments are created from the Manifestations tab.</p>
+      <p style="margin-top:-.25rem;color:#475569">Read-only review by default. Use Manifestations actions to add or edit treatment.</p>
+
+      <form *ngIf="manageMode" [formGroup]="form" (ngSubmit)="save()" class="form-grid form-grid-3" style="margin:.75rem 0 1rem">
+        <mat-form-field><mat-label>Medication</mat-label><input matInput formControlName="medication" /></mat-form-field>
+        <mat-form-field><mat-label>Dose</mat-label><input matInput formControlName="dose" /></mat-form-field>
+        <mat-form-field><mat-label>Indication</mat-label><input matInput formControlName="indication" /></mat-form-field>
+
+        <mat-form-field>
+          <mat-label>Start date</mat-label>
+          <input matInput [matDatepicker]="startPicker" [max]="today" formControlName="start_date" readonly />
+          <mat-datepicker-toggle matIconSuffix [for]="startPicker"></mat-datepicker-toggle>
+          <mat-datepicker #startPicker></mat-datepicker>
+        </mat-form-field>
+
+        <mat-form-field>
+          <mat-label>End date</mat-label>
+          <input matInput [matDatepicker]="endPicker" [max]="today" formControlName="end_date" readonly />
+          <mat-datepicker-toggle matIconSuffix [for]="endPicker"></mat-datepicker-toggle>
+          <mat-datepicker #endPicker></mat-datepicker>
+        </mat-form-field>
+
+        <mat-form-field>
+          <mat-label>Status</mat-label>
+          <mat-select formControlName="status">
+            <mat-option value="ACTIVE">ACTIVE</mat-option>
+            <mat-option value="INACTIVE">INACTIVE</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field class="notes-field"><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="notes"></textarea></mat-form-field>
+        <div style="grid-column:1/-1;display:flex;gap:.5rem">
+          <button mat-flat-button color="primary" [disabled]="form.invalid">{{ selectedTreatmentId ? 'Update treatment' : 'Create treatment' }}</button>
+          <button mat-stroked-button type="button" (click)="closeManageMode()">Done</button>
+        </div>
+      </form>
 
       <app-loading-state *ngIf="loading" />
       <app-error-state *ngIf="error" message="Failed to load treatments" (retry)="load()" />
@@ -46,12 +88,19 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
 })
 export class TreatmentsComponent {
   private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private fb = inject(FormBuilder);
   private treatmentsService = inject(TreatmentsService);
   private manifestationsService = inject(ManifestationsService);
   private manifestationFindingsService = inject(ManifestationFindingsService);
   private findingsCatalogService = inject(FindingsCatalogService);
 
+  today = new Date();
   patientId = Number(this.route.snapshot.paramMap.get('id'));
+  selectedManifestationId = Number(this.route.snapshot.queryParamMap.get('manifestationId')) || null;
+  selectedTreatmentId = Number(this.route.snapshot.queryParamMap.get('treatmentId')) || null;
+  manageMode = !!this.selectedManifestationId;
+
   items: Treatment[] = [];
   columns = ['system', 'findings', 'medication', 'dose', 'indication', 'status', 'dates', 'notes'];
   loading = false;
@@ -60,6 +109,19 @@ export class TreatmentsComponent {
   private manifestationCache: Record<number, Manifestation | null> = {};
   private findingsByManifestation: Record<number, string[]> = {};
   private findingDetailCache: Record<string, FindingCatalog | null> = {};
+
+  form = this.fb.group(
+    {
+      medication: ['', Validators.required],
+      dose: [''],
+      indication: [''],
+      start_date: this.fb.control<Date | null>(null),
+      end_date: this.fb.control<Date | null>(null),
+      status: ['ACTIVE', Validators.pattern(/^(ACTIVE|INACTIVE)$/)],
+      notes: ['']
+    },
+    { validators: [dateRangeValidator('start_date', 'end_date')] }
+  );
 
   constructor() {
     this.load();
@@ -72,6 +134,7 @@ export class TreatmentsComponent {
       next: (data) => {
         this.items = unwrapResults(data);
         this.hydrateManifestationsAndFindings();
+        this.prefillManageFormIfNeeded();
         this.loading = false;
       },
       error: () => {
@@ -93,6 +156,67 @@ export class TreatmentsComponent {
     const codes = this.findingsByManifestation[manifestationId] ?? [];
     if (!codes.length) return '-';
     return codes.map((code) => this.findingDetailCache[code]?.finding_name ?? code).join(', ');
+  }
+
+  save(): void {
+    if (!this.manageMode || this.form.invalid || !this.selectedManifestationId) return;
+    const raw = this.form.getRawValue();
+    const payload = {
+      medication: raw.medication ?? undefined,
+      dose: raw.dose ?? undefined,
+      indication: raw.indication ?? undefined,
+      start_date: this.formatDate(raw.start_date),
+      end_date: this.formatDate(raw.end_date),
+      status: raw.status ?? undefined,
+      notes: raw.notes ?? undefined
+    };
+
+    const done = () => this.load();
+
+    if (this.selectedTreatmentId) {
+      this.treatmentsService.update(this.selectedTreatmentId, payload).subscribe(done);
+      return;
+    }
+
+    this.treatmentsService.create(this.patientId, this.selectedManifestationId, payload).subscribe(done);
+  }
+
+  closeManageMode(): void {
+    void this.router.navigate(['/patients', this.patientId, 'treatments']);
+  }
+
+  private prefillManageFormIfNeeded(): void {
+    if (!this.manageMode) return;
+
+    if (this.selectedTreatmentId) {
+      const treatment = this.items.find((item) => item.treatment_id === this.selectedTreatmentId);
+      if (treatment) {
+        this.form.patchValue({
+          medication: treatment.medication ?? '',
+          dose: treatment.dose ?? '',
+          indication: treatment.indication ?? '',
+          start_date: this.parseDate(treatment.start_date),
+          end_date: this.parseDate(treatment.end_date),
+          status: treatment.status ?? 'ACTIVE',
+          notes: treatment.notes ?? ''
+        });
+      }
+      return;
+    }
+
+    const byManifestation = this.items.find((item) => item.manifestation_id === this.selectedManifestationId);
+    if (byManifestation) {
+      this.selectedTreatmentId = byManifestation.treatment_id;
+      this.form.patchValue({
+        medication: byManifestation.medication ?? '',
+        dose: byManifestation.dose ?? '',
+        indication: byManifestation.indication ?? '',
+        start_date: this.parseDate(byManifestation.start_date),
+        end_date: this.parseDate(byManifestation.end_date),
+        status: byManifestation.status ?? 'ACTIVE',
+        notes: byManifestation.notes ?? ''
+      });
+    }
   }
 
   private hydrateManifestationsAndFindings(): void {
@@ -157,5 +281,20 @@ export class TreatmentsComponent {
         this.findingDetailCache[code] = detail;
       });
     });
+  }
+
+  private formatDate(value: Date | null | undefined): string | undefined {
+    if (!value) return undefined;
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  private parseDate(value?: string): Date | null {
+    if (!value) return null;
+    const [y, m, d] = value.split('-').map((n) => Number(n));
+    if (!y || !m || !d) return null;
+    return new Date(y, m - 1, d);
   }
 }
