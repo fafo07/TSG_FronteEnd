@@ -15,7 +15,7 @@ export class TreatmentsService {
       .get<PaginatedResponse<Treatment> | Treatment[]>(`${environment.apiBaseUrl}/patients/${patientId}/treatments`)
       .pipe(
         map((data) => {
-          const list = unwrapResults(data);
+          const list = unwrapResults(data).map((item) => this.normalize(item));
           return Array.isArray(data) ? list : { ...data, results: list };
         })
       );
@@ -31,5 +31,14 @@ export class TreatmentsService {
 
   delete(treatmentId: number): Observable<void> {
     return this.http.delete<void>(`${environment.apiBaseUrl}/treatments/${treatmentId}`);
+  }
+
+  private normalize(item: Treatment): Treatment {
+    const anyItem = item as Treatment & { manifestation?: number; patient?: number };
+    return {
+      ...anyItem,
+      manifestation_id: anyItem.manifestation_id ?? anyItem.manifestation ?? 0,
+      patient_id: anyItem.patient_id ?? anyItem.patient ?? 0
+    };
   }
 }

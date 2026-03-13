@@ -10,6 +10,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
+import { catchError, forkJoin, map, of } from 'rxjs';
 
 import { FindingsCatalogService } from '../../core/api/findings-catalog.service';
 import { ManifestationFindingsService } from '../../core/api/manifestation-findings.service';
@@ -91,6 +92,7 @@ export class ManifestationsComponent {
   systems: System[] = [];
   findingsCatalog: FindingCatalog[] = [];
   findingsByCode: Record<string, FindingCatalog> = {};
+  private findingsDetailCache: Record<string, FindingCatalog | null> = {};
   findingsBySystem: FindingCatalog[] = [];
   columns = ['evaluation_date', 'system_code', 'findings', 'has_treatment', 'notes', 'actions'];
   editingId: number | null = null;
@@ -204,15 +206,37 @@ export class ManifestationsComponent {
     this.findingsLabelByManifestation = {};
     this.items.forEach((manifestation) => {
       this.manifestationFindingsService.get(manifestation.manifestation_id).subscribe((findings) => {
-        const selectedCodes = findings.filter((f) => f.is_present).map((f) => f.finding_code);
+        const selectedCodes = findings.filter((f) => f.is_present).map((f) => f.finding_code).filter((code) => !!code);
         if (!selectedCodes.length) {
           this.findingsLabelByManifestation[manifestation.manifestation_id] = '-';
           return;
         }
-        const labels = selectedCodes.map((code) => this.findingsByCode[code]?.finding_name ?? code);
-        this.findingsLabelByManifestation[manifestation.manifestation_id] = labels.join(', ');
+
+        const missingCodes = Array.from(new Set(selectedCodes)).filter((code) => !(code in this.findingsDetailCache));
+        if (!missingCodes.length) {
+          this.findingsLabelByManifestation[manifestation.manifestation_id] = this.codesToLabel(selectedCodes);
+          return;
+        }
+
+        const requests = missingCodes.map((code) =>
+          this.findingsCatalogService.getByCode(code).pipe(
+            map((detail) => ({ code, detail })),
+            catchError(() => of({ code, detail: null as FindingCatalog | null }))
+          )
+        );
+
+        forkJoin(requests).subscribe((results) => {
+          results.forEach(({ code, detail }) => {
+            this.findingsDetailCache[code] = detail;
+          });
+          this.findingsLabelByManifestation[manifestation.manifestation_id] = this.codesToLabel(selectedCodes);
+        });
       });
     });
+  }
+
+  private codesToLabel(codes: string[]): string {
+    return codes.map((code) => this.findingsDetailCache[code]?.finding_name ?? this.findingsByCode[code]?.finding_name ?? code).join(', ');
   }
 
   private formatDate(value: Date | null | undefined): string | undefined {

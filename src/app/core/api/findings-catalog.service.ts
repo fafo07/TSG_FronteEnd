@@ -27,9 +27,17 @@ export class FindingsCatalogService {
     return this.http.patch<FindingCatalog>(`${environment.apiBaseUrl}/findings/${findingCode}`, this.toApiPayload(payload)).pipe(map((item) => this.normalize(item)));
   }
 
+  getByCode(findingCode: string): Observable<FindingCatalog> {
+    return this.http.get<FindingCatalog>(`${environment.apiBaseUrl}/findings/${findingCode}`).pipe(map((item) => this.normalize(item)));
+  }
+
   private normalize(item: FindingCatalog): FindingCatalog {
-    const system = item.system ?? item.system_code;
-    return { ...item, system, system_code: item.system_code ?? system ?? '' };
+    const anyItem = item as FindingCatalog & { finding?: string; code?: string; name?: string; active?: boolean };
+    const system = anyItem.system ?? anyItem.system_code;
+    const finding_code = anyItem.finding_code ?? anyItem.finding ?? anyItem.code ?? '';
+    const finding_name = anyItem.finding_name ?? anyItem.name ?? finding_code;
+    const is_active = anyItem.is_active ?? anyItem.active ?? true;
+    return { ...anyItem, finding_code, finding_name, is_active, system, system_code: anyItem.system_code ?? system ?? '' };
   }
 
   private toApiPayload(payload: Partial<FindingCatalog>): Partial<FindingCatalog> & { system?: string } {

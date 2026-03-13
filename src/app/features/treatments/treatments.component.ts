@@ -59,10 +59,9 @@ export class TreatmentsComponent {
 
   private manifestationCache: Record<number, Manifestation | null> = {};
   private findingsByManifestation: Record<number, string[]> = {};
-  private findingLabelsByCode: Record<string, string> = {};
+  private findingDetailCache: Record<string, FindingCatalog | null> = {};
 
   constructor() {
-    this.loadAllFindingCatalog(1);
     this.load();
   }
 
@@ -86,64 +85,77 @@ export class TreatmentsComponent {
     if (!manifestationId) return '-';
     const manifestation = this.manifestationCache[manifestationId];
     if (!manifestation) return `#${manifestationId}`;
-    const system = manifestation.system || manifestation.system_code;
-    return system || `#${manifestationId}`;
+    return manifestation.system || manifestation.system_code || `#${manifestationId}`;
   }
 
   findingsLabel(manifestationId?: number | null): string {
     if (!manifestationId) return '-';
-    const findings = this.findingsByManifestation[manifestationId] ?? [];
-    if (!findings.length) return '-';
-    return findings.map((code) => this.findingLabelsByCode[code] ?? code).join(', ');
+    const codes = this.findingsByManifestation[manifestationId] ?? [];
+    if (!codes.length) return '-';
+    return codes.map((code) => this.findingDetailCache[code]?.finding_name ?? code).join(', ');
   }
 
   private hydrateManifestationsAndFindings(): void {
-    const uniqueIds = Array.from(new Set(this.items.map((item) => item.manifestation_id).filter((id): id is number => !!id)));
-    if (!uniqueIds.length) return;
+    const manifestationIds = Array.from(new Set(this.items.map((item) => item.manifestation_id).filter((id): id is number => !!id)));
+    if (!manifestationIds.length) return;
 
-    const manifestationRequests = uniqueIds
-      .filter((id) => !(id in this.manifestationCache))
-      .map((id) =>
-        this.manifestationsService.getById(id).pipe(
-          map((manifestation) => ({ id, manifestation })),
-          catchError(() => of({ id, manifestation: null as Manifestation | null }))
-        )
-      );
-
-    if (manifestationRequests.length) {
-      forkJoin(manifestationRequests).subscribe((results) => {
-        results.forEach(({ id, manifestation }) => {
-          this.manifestationCache[id] = manifestation;
-        });
-      });
-    }
-
-    const findingsRequests = uniqueIds
-      .filter((id) => !(id in this.findingsByManifestation))
-      .map((id) =>
-        this.manifestationFindingsService.get(id).pipe(
-          map((rows) => ({ id, codes: rows.filter((row) => row.is_present).map((row) => row.finding_code) })),
-          catchError(() => of({ id, codes: [] as string[] }))
-        )
-      );
-
-    if (findingsRequests.length) {
-      forkJoin(findingsRequests).subscribe((results) => {
-        results.forEach(({ id, codes }) => {
-          this.findingsByManifestation[id] = codes;
-        });
-      });
-    }
+    this.fetchManifestations(manifestationIds);
+    this.fetchManifestationFindings(manifestationIds);
   }
 
-  private loadAllFindingCatalog(page: number): void {
-    this.findingsCatalogService.list(page).subscribe({
-      next: (response) => {
-        response.results.forEach((finding: FindingCatalog) => {
-          this.findingLabelsByCode[finding.finding_code] = finding.finding_name || finding.finding_code;
+  private fetchManifestations(ids: number[]): void {
+    const missing = ids.filter((id) => !(id in this.manifestationCache));
+    if (!missing.length) return;
+
+    const requests = missing.map((id) =>
+      this.manifestationsService.getById(id).pipe(
+        map((manifestation) => ({ id, manifestation })),
+        catchError(() => of({ id, manifestation: null as Manifestation | null }))
+      )
+    );
+
+    forkJoin(requests).subscribe((results) => {
+      results.forEach(({ id, manifestation }) => {
+        this.manifestationCache[id] = manifestation;
+      });
+    });
+  }
+
+  private fetchManifestationFindings(ids: number[]): void {
+    const missing = ids.filter((id) => !(id in this.findingsByManifestation));
+    if (!missing.length) return;
+
+    const requests = missing.map((id) =>
+      this.manifestationFindingsService.get(id).pipe(
+        map((rows) => ({ id, codes: rows.filter((row) => row.is_present).map((row) => row.finding_code).filter((code) => !!code) })),
+        catchError(() => of({ id, codes: [] as string[] }))
+      )
+    );
+
+    forkJoin(requests).subscribe((results) => {
+      const codesToResolve = new Set<string>();
+      results.forEach(({ id, codes }) => {
+        this.findingsByManifestation[id] = codes;
+        codes.forEach((code) => {
+          if (!(code in this.findingDetailCache)) codesToResolve.add(code);
         });
-        if (response.next) this.loadAllFindingCatalog(page + 1);
-      }
+      });
+      if (codesToResolve.size) this.fetchFindingDetails(Array.from(codesToResolve));
+    });
+  }
+
+  private fetchFindingDetails(codes: string[]): void {
+    const requests = codes.map((code) =>
+      this.findingsCatalogService.getByCode(code).pipe(
+        map((detail) => ({ code, detail })),
+        catchError(() => of({ code, detail: null as FindingCatalog | null }))
+      )
+    );
+
+    forkJoin(requests).subscribe((results) => {
+      results.forEach(({ code, detail }) => {
+        this.findingDetailCache[code] = detail;
+      });
     });
   }
 }
