@@ -9,6 +9,7 @@ import { MatButtonModule } from '@angular/material/button';
   imports: [CommonModule, RouterLink, RouterLinkActive, MatButtonModule],
   template: `
     <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin:.5rem 0 1rem">
+      <a mat-stroked-button color="primary" [routerLink]="['/patients']">Back to patients</a>
       <a mat-stroked-button [routerLink]="['/patients', patientId, 'overview']" routerLinkActive="mdc-button--unelevated">Overview</a>
       <a mat-stroked-button [routerLink]="['/patients', patientId, 'manifestations']" routerLinkActive="mdc-button--unelevated">Manifestations</a>
       <a mat-stroked-button [routerLink]="['/patients', patientId, 'treatments']" routerLinkActive="mdc-button--unelevated">Treatments</a>

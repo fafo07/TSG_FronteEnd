@@ -53,7 +53,7 @@ import { diagnosisAfterBirthValidator } from '../../shared/validators/domain.val
       <ng-content select="[extra-fields]"></ng-content>
       <div style="grid-column:1/-1;display:flex;justify-content:flex-end;gap:.75rem">
         <button mat-stroked-button type="button" (click)="cancel.emit()">Cancel</button>
-        <button mat-flat-button color="primary" [disabled]="form.invalid">Save</button>
+        <button mat-flat-button type="submit" color="primary" [disabled]="form.invalid || loading">Save</button>
       </div>
     </form>
   `
@@ -64,6 +64,7 @@ export class PatientFormComponent {
   private countriesService = inject(CountriesService);
 
   countries: Country[] = [];
+  @Input() loading = false;
 
   @Input() set value(data: Partial<Patient> | null) {
     if (!data) return;

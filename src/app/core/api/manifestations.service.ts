@@ -43,11 +43,13 @@ export class ManifestationsService {
     return { ...item, system, system_code: item.system_code ?? system ?? '' };
   }
 
-  private toApiPayload(payload: Partial<Manifestation>): Partial<Manifestation> & { system?: string } {
+  private toApiPayload(payload: Partial<Manifestation>): Partial<Manifestation> & { system?: string; patient?: number } {
     const system = payload.system ?? payload.system_code;
+    const patient = payload.patient_id;
     return {
       ...payload,
       system,
+      patient,
       system_code: undefined
     };
   }

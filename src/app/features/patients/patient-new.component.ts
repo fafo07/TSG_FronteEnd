@@ -2,6 +2,7 @@ import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
+import { EMPTY, switchMap, tap, catchError, finalize } from 'rxjs';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -19,7 +20,7 @@ import { PatientFormComponent } from './patient-form.component';
     <mat-card class="page-card">
       <h2 style="margin:0 0 1rem">New patient</h2>
 
-      <app-patient-form (submit)="save($event)" (cancel)="back()">
+      <app-patient-form [loading]="saving" (submit)="save($event)" (cancel)="back()">
         <div extra-fields style="grid-column:1/-1;margin-top:.25rem;padding-top:1rem;border-top:1px solid #E5E7EB">
           <h3 style="margin:0 0 .75rem">Required primary contact</h3>
 
@@ -56,6 +57,8 @@ import { PatientFormComponent } from './patient-form.component';
           <p style="margin:.5rem 0 0;color:#64748B;font-size:.85rem">A patient can only be created when a primary contact is completed.</p>
         </div>
       </app-patient-form>
+
+      <p *ngIf="errorMessage" style="color:#DC2626;margin:.75rem 0 0">{{ errorMessage }}</p>
     </mat-card>
   `
 })
@@ -64,6 +67,8 @@ export class PatientNewComponent {
   private contactsService = inject(ContactsService);
   private router = inject(Router);
   private fb = inject(FormBuilder);
+  saving = false;
+  errorMessage = '';
 
   contactForm = this.fb.group({
     full_name: ['', Validators.required],
@@ -79,20 +84,36 @@ export class PatientNewComponent {
       return;
     }
 
+    this.saving = true;
+    this.errorMessage = '';
+
     const contactData = this.contactForm.getRawValue();
-    this.service.create(payload).subscribe((patient) => {
-      this.contactsService.create({
-        full_name: contactData.full_name ?? undefined,
-        relationship: contactData.relationship ?? undefined,
-        phone: contactData.phone ?? undefined,
-        email: contactData.email ?? undefined,
-        notes: contactData.notes ?? undefined
-      }).subscribe((contact) => {
-        this.contactsService.link(patient.patient_id, contact.contact_id, true).subscribe(() => {
-          void this.router.navigate(['/patients', patient.patient_id, 'overview']);
-        });
-      });
-    });
+    this.service
+      .create(payload)
+      .pipe(
+        switchMap((patient) =>
+          this.contactsService
+            .create({
+              full_name: contactData.full_name ?? undefined,
+              relationship: contactData.relationship ?? undefined,
+              phone: contactData.phone ?? undefined,
+              email: contactData.email ?? undefined,
+              notes: contactData.notes ?? undefined
+            })
+            .pipe(
+              switchMap((contact) => this.contactsService.link(patient.patient_id, contact.contact_id, true)),
+              tap(() => void this.router.navigate(['/patients', patient.patient_id, 'overview']))
+            )
+        ),
+        catchError(() => {
+          this.errorMessage = 'Unable to create patient and primary contact. Please try again.';
+          return EMPTY;
+        }),
+        finalize(() => {
+          this.saving = false;
+        })
+      )
+      .subscribe();
   }
 
   back(): void { void this.router.navigate(['/patients']); }

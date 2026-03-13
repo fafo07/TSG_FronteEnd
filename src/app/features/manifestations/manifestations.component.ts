@@ -57,7 +57,10 @@ import { LoadingStateComponent } from '../../shared/ui/loading-state.component';
         </mat-form-field>
 
         <mat-form-field class="notes-field"><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="notes"></textarea></mat-form-field>
-        <button mat-flat-button type="submit" color="primary" [disabled]="form.invalid || saving">{{ editingId ? 'Update' : 'Save' }}</button>
+        <div style="grid-column:1/-1;display:flex;gap:.75rem;justify-content:flex-end">
+          <button mat-stroked-button type="button" (click)="cancelEdit()">Cancel</button>
+          <button mat-flat-button type="submit" color="primary" [disabled]="form.invalid || saving">{{ editingId ? 'Update' : 'Save' }}</button>
+        </div>
       </form>
       <p *ngIf="saveError" style="color:#DC2626;margin:.5rem 0 0">{{ saveError }}</p>
 
@@ -173,7 +176,12 @@ export class ManifestationsComponent {
     this.saving = true;
     this.saveError = '';
     const raw = this.form.getRawValue();
-    const payload = { evaluation_date: this.formatDate(raw.evaluation_date), system_code: raw.system_code ?? undefined, notes: raw.notes ?? undefined };
+    const payload = {
+      evaluation_date: this.formatDate(raw.evaluation_date),
+      system: raw.system_code ?? undefined,
+      patient_id: this.patientId,
+      notes: raw.notes ?? undefined
+    };
 
     const done = (manifestationId: number) => {
       const selectedCodes = ((raw.finding_codes as string[] | null) ?? []).filter((code) => !!code);
@@ -211,6 +219,13 @@ export class ManifestationsComponent {
         this.saveError = 'Unable to save manifestation changes.';
       }
     });
+  }
+
+  cancelEdit(): void {
+    this.editingId = null;
+    this.form.reset({ evaluation_date: null, system_code: null, finding_codes: [], notes: '' });
+    this.findingsBySystem = [];
+    this.saveError = '';
   }
 
   private loadAllFindings(page: number): void {
