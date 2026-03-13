@@ -21,7 +21,7 @@ import { AuthService } from './auth.service';
         <mat-form-field class="full-width"><mat-label>Username</mat-label><input matInput formControlName="username" /></mat-form-field>
         <mat-form-field class="full-width"><mat-label>Password</mat-label><input matInput type="password" formControlName="password" /></mat-form-field>
         <p *ngIf="error" style="color:#DC2626">{{ errorMessage }}</p>
-        <button mat-flat-button color="primary" class="full-width" [disabled]="form.invalid">Login</button>
+        <button mat-flat-button type="submit" color="primary" class="full-width" [disabled]="form.invalid">Login</button>
       </form>
     </mat-card>
   </div>
@@ -47,14 +47,11 @@ export class LoginComponent {
       error: (err: unknown) => {
         this.error = true;
         if (err instanceof HttpErrorResponse) {
-          const backendMessage = (err.error?.message as string | undefined) ?? (err.error?.error as string | undefined);
-          this.errorMessage = backendMessage || `Login error (${err.status})`;
+          this.errorMessage = err.status === 0 ? 'Server not responding' : 'Invalid username or password';
           return;
         }
 
-        if (err instanceof Error) {
-          this.errorMessage = err.message;
-        }
+        this.errorMessage = 'Server not responding';
       }
     });
   }

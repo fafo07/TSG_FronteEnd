@@ -42,7 +42,7 @@ import { PageHeaderComponent } from '../../shared/ui/page-header.component';
         <ng-container matColumnDef="full_name"><th mat-header-cell *matHeaderCellDef>Full name</th><td mat-cell *matCellDef="let p">{{ p.full_name }}</td></ng-container>
         <ng-container matColumnDef="country_code"><th mat-header-cell *matHeaderCellDef>Country</th><td mat-cell *matCellDef="let p">{{ countryName(p) }}</td></ng-container>
         <ng-container matColumnDef="diagnosis_date"><th mat-header-cell *matHeaderCellDef>Diagnosis date</th><td mat-cell *matCellDef="let p">{{ p.diagnosis_date || '-' }}</td></ng-container>
-        <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Actions</th><td mat-cell *matCellDef="let p"><a class="table-action" [routerLink]="['/patients', p.patient_id, 'overview']">View</a> · <a class="table-action" [routerLink]="['/patients', p.patient_id, 'edit']">Edit</a></td></ng-container>
+        <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Actions</th><td mat-cell *matCellDef="let p"><a class="table-action" [routerLink]="['/patients', p.patient_id, 'overview']">View</a></td></ng-container>
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
         <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
       </table>

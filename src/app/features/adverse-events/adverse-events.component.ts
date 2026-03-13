@@ -40,7 +40,7 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
         <mat-form-field><mat-label>Action taken</mat-label><input matInput formControlName="action_taken" /></mat-form-field>
         <mat-form-field><mat-label>Treatment (optional)</mat-label><mat-select formControlName="treatment_id"><mat-option [value]="null">No link</mat-option><mat-option *ngFor="let t of treatments" [value]="t.treatment_id">#{{ t.treatment_id }} - {{ t.medication }}</mat-option></mat-select></mat-form-field>
         <mat-form-field class="notes-field"><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="notes"></textarea></mat-form-field>
-        <button mat-flat-button color="primary" [disabled]="form.invalid">{{ editingId ? 'Update' : 'Save' }}</button>
+        <div style="grid-column:1/-1;display:flex;gap:.75rem;justify-content:flex-end"><button mat-stroked-button type="button" (click)="cancelEdit()">Cancel</button><button mat-flat-button type="submit" color="primary" [disabled]="form.invalid">{{ editingId ? 'Update' : 'Save' }}</button></div>
       </form>
 
       <app-loading-state *ngIf="loading" />
@@ -75,10 +75,10 @@ export class AdverseEventsComponent {
   error = false;
 
   form = this.fb.group({
-    event_name: ['', Validators.required],
+    event_name: ['', [Validators.required, Validators.maxLength(255)]],
     event_date: [null as Date | null, Validators.required],
-    severity: ['MILD'],
-    action_taken: [''],
+    severity: ['MILD', Validators.maxLength(50)],
+    action_taken: ['', Validators.maxLength(255)],
     notes: [''],
     treatment_id: [null as number | null]
   });
@@ -113,6 +113,11 @@ export class AdverseEventsComponent {
     if (!treatmentId) return '-';
     const treatment = this.treatments.find((t) => t.treatment_id === treatmentId);
     return treatment ? `${treatment.medication} (#${treatmentId})` : `#${treatmentId}`;
+  }
+
+  cancelEdit(): void {
+    this.editingId = null;
+    this.form.reset({ event_name: '', event_date: null, severity: 'MILD', action_taken: '', notes: '', treatment_id: null });
   }
 
   remove(item: AdverseEvent): void {

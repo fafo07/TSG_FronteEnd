@@ -49,8 +49,9 @@ type PatientContactListItem = Contact | {
         <mat-form-field><mat-label>Address</mat-label><input matInput formControlName="address" /></mat-form-field>
         <mat-form-field class="notes-field"><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="notes"></textarea></mat-form-field>
         <mat-checkbox formControlName="is_primary">Primary</mat-checkbox>
-        <button mat-flat-button color="primary">{{ editingContactId ? 'Update contact' : 'Save & link' }}</button>
+        <div style="grid-column:1/-1;display:flex;gap:.75rem;justify-content:flex-end"><button mat-stroked-button type="button" (click)="cancelEdit()">Cancel</button><button mat-flat-button type="submit" color="primary" [disabled]="form.invalid">{{ editingContactId ? 'Update contact' : 'Save & link' }}</button></div>
       </form>
+      <p *ngIf="form.get('full_name')?.errors?.['required']" style="color:#DC2626">Full name is required.</p>
       <p *ngIf="form.get('full_name')?.errors?.['pattern']" style="color:#DC2626">Full name must contain letters only.</p>
       <p *ngIf="form.get('phone')?.errors?.['pattern']" style="color:#DC2626">Phone format is invalid.</p>
       <p *ngIf="form.get('email')?.errors?.['invalidEmail']" style="color:#DC2626">Invalid email</p>
@@ -65,7 +66,7 @@ type PatientContactListItem = Contact | {
         <ng-container matColumnDef="email"><th mat-header-cell *matHeaderCellDef>Email</th><td mat-cell *matCellDef="let item">{{ item.email || '-' }}</td></ng-container>
         <ng-container matColumnDef="phone"><th mat-header-cell *matHeaderCellDef>Phone</th><td mat-cell *matCellDef="let item">{{ item.phone || '-' }}</td></ng-container>
         <ng-container matColumnDef="primary"><th mat-header-cell *matHeaderCellDef>Primary</th><td mat-cell *matCellDef="let item">{{ primaryByContactId[item.contact_id] ? 'Yes' : 'No' }}</td></ng-container>
-        <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Actions</th><td mat-cell *matCellDef="let item"><button mat-button (click)="edit(item)">Edit</button><button mat-button (click)="togglePrimary(item)">Toggle primary</button><button mat-button color="warn" (click)="unlink(item)">Unlink</button></td></ng-container>
+        <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Actions</th><td mat-cell *matCellDef="let item"><button mat-button type="button" (click)="edit(item)">Edit</button></td></ng-container>
         <tr mat-header-row *matHeaderRowDef="columns"></tr>
         <tr mat-row *matRowDef="let row; columns: columns"></tr>
       </table>
@@ -143,19 +144,12 @@ export class ContactsComponent {
     });
   }
 
-  togglePrimary(contact: Contact): void {
-    const next = !this.primaryByContactId[contact.contact_id];
-    this.service.updateLink(this.patientId, contact.contact_id, next).subscribe(() => {
-      this.primaryByContactId[contact.contact_id] = next;
-    });
+
+
+  cancelEdit(): void {
+    this.editingContactId = null;
+    this.form.reset({ full_name: '', relationship: '', phone: '', email: '', address: '', notes: '', is_primary: false });
   }
-
-  unlink(contact: Contact): void {
-    if (!window.confirm(`Unlink ${contact.full_name}?`)) return;
-    this.service.unlink(this.patientId, contact.contact_id).subscribe(() => this.load());
-  }
-
-
 
   private normalizeContact(item: PatientContactListItem): Contact {
     const rawContact = 'contact' in item ? item.contact : undefined;

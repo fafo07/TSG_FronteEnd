@@ -41,7 +41,7 @@ import { PageHeaderComponent } from '../../shared/ui/page-header.component';
           <form [formGroup]="countryForm" (ngSubmit)="saveCountry()" style="display:grid;grid-template-columns:1fr 2fr auto;gap:1rem;align-items:center">
             <mat-form-field><mat-label>Code</mat-label><input matInput formControlName="country_code" [readonly]="!!editingCountryCode" /></mat-form-field>
             <mat-form-field><mat-label>Name</mat-label><input matInput formControlName="country_name" /></mat-form-field>
-            <button mat-flat-button color="primary" [disabled]="countryForm.invalid">{{ editingCountryCode ? 'Update' : 'Save' }}</button>
+            <button mat-flat-button type="submit" color="primary" [disabled]="countryForm.invalid">{{ editingCountryCode ? 'Update' : 'Save' }}</button>
           </form>
           <app-empty-state *ngIf="!countries.length" message="No countries found" />
           <table *ngIf="countries.length" mat-table [dataSource]="countries" class="full-width">
@@ -61,7 +61,7 @@ import { PageHeaderComponent } from '../../shared/ui/page-header.component';
           <form [formGroup]="systemForm" (ngSubmit)="saveSystem()" style="display:grid;grid-template-columns:1fr 2fr auto;gap:1rem;align-items:center">
             <mat-form-field><mat-label>Code</mat-label><input matInput formControlName="system_code" [readonly]="!!editingSystemCode" /></mat-form-field>
             <mat-form-field><mat-label>Name</mat-label><input matInput formControlName="system_name" /></mat-form-field>
-            <button mat-flat-button color="primary" [disabled]="systemForm.invalid">{{ editingSystemCode ? 'Update' : 'Save' }}</button>
+            <button mat-flat-button type="submit" color="primary" [disabled]="systemForm.invalid">{{ editingSystemCode ? 'Update' : 'Save' }}</button>
           </form>
           <app-empty-state *ngIf="!systems.length" message="No systems found" />
           <table *ngIf="systems.length" mat-table [dataSource]="systems" class="full-width">
@@ -78,12 +78,13 @@ import { PageHeaderComponent } from '../../shared/ui/page-header.component';
         </ng-container>
 
         <ng-container *ngSwitchDefault>
-          <form [formGroup]="findingForm" (ngSubmit)="saveFinding()" style="display:grid;grid-template-columns:1fr 2fr 2fr auto auto;gap:1rem;align-items:center">
-            <mat-form-field><mat-label>Code</mat-label><input matInput formControlName="finding_code" [readonly]="!!editingFindingCode" /></mat-form-field>
-            <mat-form-field><mat-label>System</mat-label><mat-select formControlName="system_code"><mat-option *ngFor="let s of systems" [value]="s.system_code">{{ s.system_name }}</mat-option></mat-select></mat-form-field>
-            <mat-form-field><mat-label>Finding name</mat-label><input matInput formControlName="finding_name" /></mat-form-field>
+          <form [formGroup]="findingForm" (ngSubmit)="saveFinding()" class="form-grid form-grid-3">
+            <mat-form-field><mat-label>Code</mat-label><input matInput formControlName="finding_code" [readonly]="!!editingFindingCode" /><mat-error *ngIf="findingForm.get('finding_code')?.hasError('required')">Code is required.</mat-error><mat-error *ngIf="findingForm.get('finding_code')?.hasError('maxlength')">Max length is 50.</mat-error></mat-form-field>
+            <mat-form-field><mat-label>System</mat-label><mat-select formControlName="system_code"><mat-option *ngFor="let s of systems" [value]="s.system_code">{{ s.system_name }}</mat-option></mat-select><mat-error *ngIf="findingForm.get('system_code')?.hasError('required')">System is required.</mat-error></mat-form-field>
+            <mat-form-field><mat-label>Finding name</mat-label><input matInput formControlName="finding_name" /><mat-error *ngIf="findingForm.get('finding_name')?.hasError('required')">Name is required.</mat-error><mat-error *ngIf="findingForm.get('finding_name')?.hasError('maxlength')">Max length is 255.</mat-error></mat-form-field>
+            <mat-form-field class="notes-field" style="grid-column:1/-1"><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="description"></textarea></mat-form-field>
             <mat-checkbox formControlName="is_active">Active</mat-checkbox>
-            <button mat-flat-button color="primary" [disabled]="findingForm.invalid">{{ editingFindingCode ? 'Update' : 'Save' }}</button>
+            <div style="display:flex;justify-content:flex-end;grid-column:1/-1"><button mat-flat-button type="submit" color="primary" [disabled]="findingForm.invalid">{{ editingFindingCode ? 'Update' : 'Save' }}</button></div>
           </form>
           <app-empty-state *ngIf="!findings.length" message="No findings found" />
           <table *ngIf="findings.length" mat-table [dataSource]="findings" class="full-width">
@@ -135,9 +136,9 @@ export class CatalogsComponent {
   countryForm = this.fb.group({ country_code: ['', Validators.required], country_name: ['', Validators.required] });
   systemForm = this.fb.group({ system_code: ['', Validators.required], system_name: ['', Validators.required] });
   findingForm = this.fb.group({
-    finding_code: ['', Validators.required],
+    finding_code: ['', [Validators.required, Validators.maxLength(50)]],
     system_code: ['', Validators.required],
-    finding_name: ['', Validators.required],
+    finding_name: ['', [Validators.required, Validators.maxLength(255)]],
     description: [''],
     is_active: [true, Validators.required]
   });

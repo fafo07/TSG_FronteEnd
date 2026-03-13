@@ -39,7 +39,7 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
         <mat-form-field><mat-label>Variant</mat-label><input matInput formControlName="variant" /></mat-form-field>
         <mat-form-field><mat-label>Laboratory</mat-label><input matInput formControlName="lab_name" /></mat-form-field>
         <mat-form-field class="notes-field"><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="notes"></textarea></mat-form-field>
-        <button mat-flat-button color="primary">{{ editingId ? 'Update' : 'Save' }}</button>
+        <div style="grid-column:1/-1;display:flex;gap:.75rem;justify-content:flex-end"><button mat-stroked-button type="button" (click)="cancelEdit()">Cancel</button><button mat-flat-button type="submit" color="primary" [disabled]="form.invalid">{{ editingId ? 'Update' : 'Save' }}</button></div>
       </form>
       <p *ngIf="form.errors?.['invalidGene']" style="color:#DC2626">Gene must be TSC1 or TSC2</p>
 
@@ -72,7 +72,7 @@ export class GeneticTestsComponent {
   error = false;
 
   form = this.fb.group(
-    { gene: ['', Validators.required], test_date: [null as Date | null], variant: [''], lab_name: [''], notes: [''] },
+    { gene: ['', [Validators.required, Validators.maxLength(100)]], test_date: [null as Date | null], variant: ['', Validators.maxLength(255)], lab_name: ['', Validators.maxLength(255)], notes: [''] },
     { validators: [geneValidator('gene')] }
   );
 
@@ -98,6 +98,11 @@ export class GeneticTestsComponent {
   startEdit(item: GeneticTest): void {
     this.editingId = item.test_id;
     this.form.patchValue({ ...item, test_date: this.parseDate(item.test_date) });
+  }
+
+  cancelEdit(): void {
+    this.editingId = null;
+    this.form.reset({ gene: '', test_date: null, variant: '', lab_name: '', notes: '' });
   }
 
   remove(item: GeneticTest): void {
