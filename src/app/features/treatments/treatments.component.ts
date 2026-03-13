@@ -1,14 +1,15 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
-import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatTableModule } from '@angular/material/table';
 import { catchError, forkJoin, map, of } from 'rxjs';
 
+import { FindingsCatalogService } from '../../core/api/findings-catalog.service';
+import { ManifestationFindingsService } from '../../core/api/manifestation-findings.service';
 import { ManifestationsService } from '../../core/api/manifestations.service';
 import { TreatmentsService } from '../../core/api/treatments.service';
-import { Manifestation, Treatment } from '../../shared/models/models';
+import { FindingCatalog, Manifestation, Treatment } from '../../shared/models/models';
 import { unwrapResults } from '../../shared/models/pagination';
 import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
 import { ErrorStateComponent } from '../../shared/ui/error-state.component';
@@ -17,7 +18,7 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, MatCardModule, MatButtonModule, MatTableModule, PatientTabsComponent, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent],
+  imports: [CommonModule, MatCardModule, MatTableModule, PatientTabsComponent, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent],
   template: `
     <app-patient-tabs [patientId]="patientId" />
 
@@ -29,9 +30,9 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
       <app-error-state *ngIf="error" message="Failed to load treatments" (retry)="load()" />
       <app-empty-state *ngIf="!loading && !error && !items.length" message="No treatments found" />
 
-      <h3 *ngIf="!loading && !error && items.length" class="section-title">Patient medications</h3>
       <table *ngIf="!loading && !error && items.length" mat-table [dataSource]="items" class="full-width" style="margin-top:1rem">
-        <ng-container matColumnDef="manifestation"><th mat-header-cell *matHeaderCellDef>Manifestation</th><td mat-cell *matCellDef="let t">{{ manifestationLabel(t.manifestation_id) }}</td></ng-container>
+        <ng-container matColumnDef="system"><th mat-header-cell *matHeaderCellDef>System</th><td mat-cell *matCellDef="let t">{{ systemLabel(t.manifestation_id) }}</td></ng-container>
+        <ng-container matColumnDef="findings"><th mat-header-cell *matHeaderCellDef>Findings</th><td mat-cell *matCellDef="let t">{{ findingsLabel(t.manifestation_id) }}</td></ng-container>
         <ng-container matColumnDef="medication"><th mat-header-cell *matHeaderCellDef>Medication</th><td mat-cell *matCellDef="let t">{{ t.medication }}</td></ng-container>
         <ng-container matColumnDef="dose"><th mat-header-cell *matHeaderCellDef>Dose</th><td mat-cell *matCellDef="let t">{{ t.dose || '-' }}</td></ng-container>
         <ng-container matColumnDef="indication"><th mat-header-cell *matHeaderCellDef>Indication</th><td mat-cell *matCellDef="let t">{{ t.indication || '-' }}</td></ng-container>
@@ -47,16 +48,21 @@ export class TreatmentsComponent {
   private route = inject(ActivatedRoute);
   private treatmentsService = inject(TreatmentsService);
   private manifestationsService = inject(ManifestationsService);
+  private manifestationFindingsService = inject(ManifestationFindingsService);
+  private findingsCatalogService = inject(FindingsCatalogService);
 
   patientId = Number(this.route.snapshot.paramMap.get('id'));
   items: Treatment[] = [];
-  columns = ['manifestation', 'medication', 'dose', 'indication', 'status', 'dates', 'notes'];
+  columns = ['system', 'findings', 'medication', 'dose', 'indication', 'status', 'dates', 'notes'];
   loading = false;
   error = false;
 
   private manifestationCache: Record<number, Manifestation | null> = {};
+  private findingsByManifestation: Record<number, string[]> = {};
+  private findingLabelsByCode: Record<string, string> = {};
 
   constructor() {
+    this.loadAllFindingCatalog(1);
     this.load();
   }
 
@@ -66,7 +72,7 @@ export class TreatmentsComponent {
     this.treatmentsService.listByPatient(this.patientId).subscribe({
       next: (data) => {
         this.items = unwrapResults(data);
-        this.hydrateManifestations();
+        this.hydrateManifestationsAndFindings();
         this.loading = false;
       },
       error: () => {
@@ -76,34 +82,68 @@ export class TreatmentsComponent {
     });
   }
 
-  manifestationLabel(manifestationId?: number | null): string {
+  systemLabel(manifestationId?: number | null): string {
     if (!manifestationId) return '-';
     const manifestation = this.manifestationCache[manifestationId];
     if (!manifestation) return `#${manifestationId}`;
     const system = manifestation.system || manifestation.system_code;
-    if (!system) return `#${manifestationId}`;
-    return manifestation.evaluation_date
-      ? `#${manifestationId} - ${system} - ${manifestation.evaluation_date}`
-      : `#${manifestationId} - ${system}`;
+    return system || `#${manifestationId}`;
   }
 
-  private hydrateManifestations(): void {
+  findingsLabel(manifestationId?: number | null): string {
+    if (!manifestationId) return '-';
+    const findings = this.findingsByManifestation[manifestationId] ?? [];
+    if (!findings.length) return '-';
+    return findings.map((code) => this.findingLabelsByCode[code] ?? code).join(', ');
+  }
+
+  private hydrateManifestationsAndFindings(): void {
     const uniqueIds = Array.from(new Set(this.items.map((item) => item.manifestation_id).filter((id): id is number => !!id)));
-    const missingIds = uniqueIds.filter((id) => !(id in this.manifestationCache));
+    if (!uniqueIds.length) return;
 
-    if (!missingIds.length) return;
+    const manifestationRequests = uniqueIds
+      .filter((id) => !(id in this.manifestationCache))
+      .map((id) =>
+        this.manifestationsService.getById(id).pipe(
+          map((manifestation) => ({ id, manifestation })),
+          catchError(() => of({ id, manifestation: null as Manifestation | null }))
+        )
+      );
 
-    const requests = missingIds.map((id) =>
-      this.manifestationsService.getById(id).pipe(
-        map((manifestation) => ({ id, manifestation })),
-        catchError(() => of({ id, manifestation: null as Manifestation | null }))
-      )
-    );
-
-    forkJoin(requests).subscribe((results) => {
-      results.forEach(({ id, manifestation }) => {
-        this.manifestationCache[id] = manifestation;
+    if (manifestationRequests.length) {
+      forkJoin(manifestationRequests).subscribe((results) => {
+        results.forEach(({ id, manifestation }) => {
+          this.manifestationCache[id] = manifestation;
+        });
       });
+    }
+
+    const findingsRequests = uniqueIds
+      .filter((id) => !(id in this.findingsByManifestation))
+      .map((id) =>
+        this.manifestationFindingsService.get(id).pipe(
+          map((rows) => ({ id, codes: rows.filter((row) => row.is_present).map((row) => row.finding_code) })),
+          catchError(() => of({ id, codes: [] as string[] }))
+        )
+      );
+
+    if (findingsRequests.length) {
+      forkJoin(findingsRequests).subscribe((results) => {
+        results.forEach(({ id, codes }) => {
+          this.findingsByManifestation[id] = codes;
+        });
+      });
+    }
+  }
+
+  private loadAllFindingCatalog(page: number): void {
+    this.findingsCatalogService.list(page).subscribe({
+      next: (response) => {
+        response.results.forEach((finding: FindingCatalog) => {
+          this.findingLabelsByCode[finding.finding_code] = finding.finding_name || finding.finding_code;
+        });
+        if (response.next) this.loadAllFindingCatalog(page + 1);
+      }
     });
   }
 }

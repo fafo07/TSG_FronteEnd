@@ -49,7 +49,7 @@ import { LoadingStateComponent } from '../../shared/ui/loading-state.component';
 
         <mat-form-field>
           <mat-label>Finding catalog</mat-label>
-          <mat-select formControlName="finding_code" [disabled]="!form.value.system_code">
+          <mat-select formControlName="finding_codes" [disabled]="!form.value.system_code" multiple>
             <mat-option *ngFor="let f of findingsBySystem" [value]="f.finding_code">{{ f.finding_name }} ({{ f.finding_code }})</mat-option>
           </mat-select>
           <mat-hint *ngIf="form.value.system_code && !findingsBySystem.length">No findings available for selected system</mat-hint>
@@ -102,7 +102,7 @@ export class ManifestationsComponent {
   form = this.fb.group({
     evaluation_date: [null as Date | null, Validators.required],
     system_code: ['', Validators.required],
-    finding_code: ['', Validators.required],
+    finding_codes: [[], Validators.required],
     notes: ['']
   });
 
@@ -113,8 +113,10 @@ export class ManifestationsComponent {
   }
 
   onSystemChange(systemCode: string): void {
-    this.form.patchValue({ finding_code: '' });
     this.findingsBySystem = this.findingsCatalog.filter((f) => (f.system ?? f.system_code) === systemCode && f.is_active);
+    const selectedCodes = (this.form.getRawValue().finding_codes ?? []) as string[];
+    const allowed = new Set(this.findingsBySystem.map((f) => f.finding_code));
+    this.form.patchValue({ finding_codes: selectedCodes.filter((code) => allowed.has(code)) });
   }
 
   load(): void {
@@ -141,12 +143,12 @@ export class ManifestationsComponent {
   edit(item: Manifestation): void {
     this.editingId = item.manifestation_id;
     const systemCode = item.system_code || item.system || '';
-    this.form.patchValue({ evaluation_date: this.parseDate(item.evaluation_date), system_code: systemCode, notes: item.notes ?? '', finding_code: '' });
+    this.form.patchValue({ evaluation_date: this.parseDate(item.evaluation_date), system_code: systemCode, notes: item.notes ?? '', finding_codes: [] });
     this.onSystemChange(systemCode);
 
     this.manifestationFindingsService.get(item.manifestation_id).subscribe((findings) => {
-      const selected = findings.find((finding) => finding.is_present);
-      this.form.patchValue({ finding_code: selected?.finding_code ?? '' });
+      const selectedCodes = findings.filter((finding) => finding.is_present).map((finding) => finding.finding_code);
+      this.form.patchValue({ finding_codes: selectedCodes });
     });
   }
 
@@ -156,8 +158,10 @@ export class ManifestationsComponent {
     const payload = { evaluation_date: this.formatDate(raw.evaluation_date), system_code: raw.system_code ?? undefined, notes: raw.notes ?? undefined };
 
     const done = (manifestationId: number) => {
-      this.manifestationFindingsService.replace(manifestationId, [{ finding_code: raw.finding_code!, is_present: true }]).subscribe(() => {
-        this.form.reset({ evaluation_date: null, system_code: '', finding_code: '', notes: '' });
+      const selectedCodes = ((raw.finding_codes as string[] | null) ?? []).filter((code) => !!code);
+      const findingsPayload = selectedCodes.map((finding_code) => ({ finding_code, is_present: true }));
+      this.manifestationFindingsService.replace(manifestationId, findingsPayload).subscribe(() => {
+        this.form.reset({ evaluation_date: null, system_code: '', finding_codes: [], notes: '' });
         this.findingsBySystem = [];
         this.editingId = null;
         this.load();
@@ -179,6 +183,7 @@ export class ManifestationsComponent {
           this.findingsByCode[finding.finding_code] = finding;
         });
         this.findingsCatalog = Object.values(this.findingsByCode);
+        this.items.length && this.loadManifestationFindingsLabels();
         if (response.next) {
           this.loadAllFindings(page + 1);
         }
