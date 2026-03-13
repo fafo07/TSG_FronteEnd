@@ -63,10 +63,11 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
 
         <mat-form-field class="notes-field"><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="notes"></textarea></mat-form-field>
         <div style="grid-column:1/-1;display:flex;gap:.5rem">
-          <button mat-flat-button color="primary" [disabled]="form.invalid">{{ selectedTreatmentId ? 'Update treatment' : 'Create treatment' }}</button>
+          <button mat-flat-button type="submit" color="primary" [disabled]="form.invalid || saving">{{ selectedTreatmentId ? 'Update treatment' : 'Create treatment' }}</button>
           <button mat-stroked-button type="button" (click)="closeManageMode()">Done</button>
         </div>
       </form>
+      <p *ngIf="saveError" style="color:#DC2626;margin:.5rem 0 0">{{ saveError }}</p>
 
       <app-loading-state *ngIf="loading" />
       <app-error-state *ngIf="error" message="Failed to load treatments" (retry)="load()" />
@@ -105,6 +106,8 @@ export class TreatmentsComponent {
   columns = ['system', 'findings', 'medication', 'dose', 'indication', 'status', 'dates', 'notes'];
   loading = false;
   error = false;
+  saving = false;
+  saveError = '';
 
   private manifestationCache: Record<number, Manifestation | null> = {};
   private findingsByManifestation: Record<number, string[]> = {};
@@ -160,6 +163,8 @@ export class TreatmentsComponent {
 
   save(): void {
     if (!this.manageMode || this.form.invalid || !this.selectedManifestationId) return;
+    this.saving = true;
+    this.saveError = '';
     const raw = this.form.getRawValue();
     const payload = {
       medication: raw.medication ?? undefined,
@@ -171,14 +176,29 @@ export class TreatmentsComponent {
       notes: raw.notes ?? undefined
     };
 
-    const done = () => this.load();
+    const done = () => {
+      this.saving = false;
+      this.load();
+    };
 
     if (this.selectedTreatmentId) {
-      this.treatmentsService.update(this.selectedTreatmentId, payload).subscribe(done);
+      this.treatmentsService.update(this.selectedTreatmentId, payload).subscribe({
+        next: done,
+        error: () => {
+          this.saving = false;
+          this.saveError = 'Unable to save treatment changes.';
+        }
+      });
       return;
     }
 
-    this.treatmentsService.create(this.patientId, this.selectedManifestationId, payload).subscribe(done);
+    this.treatmentsService.create(this.patientId, this.selectedManifestationId, payload).subscribe({
+      next: done,
+      error: () => {
+        this.saving = false;
+        this.saveError = 'Unable to save treatment changes.';
+      }
+    });
   }
 
   closeManageMode(): void {

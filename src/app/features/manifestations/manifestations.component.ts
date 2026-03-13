@@ -57,8 +57,9 @@ import { LoadingStateComponent } from '../../shared/ui/loading-state.component';
         </mat-form-field>
 
         <mat-form-field class="notes-field"><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="notes"></textarea></mat-form-field>
-        <button mat-flat-button color="primary" [disabled]="form.invalid">{{ editingId ? 'Update' : 'Save' }}</button>
+        <button mat-flat-button type="submit" color="primary" [disabled]="form.invalid || saving">{{ editingId ? 'Update' : 'Save' }}</button>
       </form>
+      <p *ngIf="saveError" style="color:#DC2626;margin:.5rem 0 0">{{ saveError }}</p>
 
       <app-loading-state *ngIf="loading" />
       <app-error-state *ngIf="error" message="Failed to load manifestations" (retry)="load()" />
@@ -104,6 +105,8 @@ export class ManifestationsComponent {
   editingId: number | null = null;
   loading = false;
   error = false;
+  saving = false;
+  saveError = '';
   treatmentIdByManifestation: Record<number, number> = {};
   findingsLabelByManifestation: Record<number, string> = {};
 
@@ -167,26 +170,47 @@ export class ManifestationsComponent {
 
   save(): void {
     if (this.form.invalid) return;
+    this.saving = true;
+    this.saveError = '';
     const raw = this.form.getRawValue();
     const payload = { evaluation_date: this.formatDate(raw.evaluation_date), system_code: raw.system_code ?? undefined, notes: raw.notes ?? undefined };
 
     const done = (manifestationId: number) => {
       const selectedCodes = ((raw.finding_codes as string[] | null) ?? []).filter((code) => !!code);
       const findingsPayload = selectedCodes.map((finding_code) => ({ finding_code, is_present: true }));
-      this.manifestationFindingsService.replace(manifestationId, findingsPayload).subscribe(() => {
-        this.form.reset({ evaluation_date: null, system_code: null, finding_codes: [], notes: '' });
-        this.findingsBySystem = [];
-        this.editingId = null;
-        this.load();
+      this.manifestationFindingsService.replace(manifestationId, findingsPayload).subscribe({
+        next: () => {
+          this.form.reset({ evaluation_date: null, system_code: null, finding_codes: [], notes: '' });
+          this.findingsBySystem = [];
+          this.editingId = null;
+          this.saving = false;
+          this.load();
+        },
+        error: () => {
+          this.saving = false;
+          this.saveError = 'Unable to save manifestation changes.';
+        }
       });
     };
 
     if (this.editingId) {
-      this.service.update(this.editingId, payload).subscribe((updated) => done(updated.manifestation_id));
+      this.service.update(this.editingId, payload).subscribe({
+        next: (updated) => done(updated.manifestation_id),
+        error: () => {
+          this.saving = false;
+          this.saveError = 'Unable to save manifestation changes.';
+        }
+      });
       return;
     }
 
-    this.service.create(this.patientId, payload).subscribe((created) => done(created.manifestation_id));
+    this.service.create(this.patientId, payload).subscribe({
+      next: (created) => done(created.manifestation_id),
+      error: () => {
+        this.saving = false;
+        this.saveError = 'Unable to save manifestation changes.';
+      }
+    });
   }
 
   private loadAllFindings(page: number): void {

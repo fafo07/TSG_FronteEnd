@@ -40,8 +40,9 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
         <mat-form-field><mat-label>Action taken</mat-label><input matInput formControlName="action_taken" /></mat-form-field>
         <mat-form-field><mat-label>Treatment (optional)</mat-label><mat-select formControlName="treatment_id"><mat-option [value]="null">No link</mat-option><mat-option *ngFor="let t of treatments" [value]="t.treatment_id">#{{ t.treatment_id }} - {{ t.medication }}</mat-option></mat-select></mat-form-field>
         <mat-form-field class="notes-field"><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="notes"></textarea></mat-form-field>
-        <div style="grid-column:1/-1;display:flex;gap:.75rem;justify-content:flex-end"><button mat-stroked-button type="button" (click)="cancelEdit()">Cancel</button><button mat-flat-button type="submit" color="primary" [disabled]="form.invalid">{{ editingId ? 'Update' : 'Save' }}</button></div>
+        <div style="grid-column:1/-1;display:flex;gap:.75rem;justify-content:flex-end"><button mat-stroked-button type="button" (click)="cancelEdit()">Cancel</button><button mat-flat-button type="submit" color="primary" [disabled]="form.invalid || saving">{{ editingId ? 'Update' : 'Save' }}</button></div>
       </form>
+      <p *ngIf="saveError" style="color:#DC2626;margin:.5rem 0 0">{{ saveError }}</p>
 
       <app-loading-state *ngIf="loading" />
       <app-error-state *ngIf="error" message="Failed to load adverse events" (retry)="load()" />
@@ -73,6 +74,8 @@ export class AdverseEventsComponent {
   editingId: number | null = null;
   loading = false;
   error = false;
+  saving = false;
+  saveError = '';
 
   form = this.fb.group({
     event_name: ['', [Validators.required, Validators.maxLength(255)]],
@@ -127,6 +130,8 @@ export class AdverseEventsComponent {
 
   save(): void {
     if (this.form.invalid) return;
+    this.saving = true;
+    this.saveError = '';
     const raw = this.form.getRawValue();
     const payload = {
       event_name: raw.event_name ?? undefined,
@@ -140,15 +145,28 @@ export class AdverseEventsComponent {
     const done = () => {
       this.form.reset({ event_name: '', event_date: null, severity: 'MILD', action_taken: '', notes: '', treatment_id: null });
       this.editingId = null;
+      this.saving = false;
       this.load();
     };
 
     if (this.editingId) {
-      this.service.update(this.editingId, payload).subscribe(done);
+      this.service.update(this.editingId, payload).subscribe({
+        next: done,
+        error: () => {
+          this.saving = false;
+          this.saveError = 'Unable to save adverse event changes.';
+        }
+      });
       return;
     }
 
-    this.service.create(this.patientId, payload).subscribe(done);
+    this.service.create(this.patientId, payload).subscribe({
+      next: done,
+      error: () => {
+        this.saving = false;
+        this.saveError = 'Unable to save adverse event changes.';
+      }
+    });
   }
 
   private formatDate(value: Date | null | undefined): string | undefined {

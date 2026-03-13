@@ -51,6 +51,7 @@ type PatientContactListItem = Contact | {
         <mat-checkbox formControlName="is_primary">Primary</mat-checkbox>
         <div style="grid-column:1/-1;display:flex;gap:.75rem;justify-content:flex-end"><button mat-stroked-button type="button" (click)="cancelEdit()">Cancel</button><button mat-flat-button type="submit" color="primary" [disabled]="form.invalid">{{ editingContactId ? 'Update contact' : 'Save & link' }}</button></div>
       </form>
+      <p *ngIf="saveError" style="color:#DC2626;margin:.5rem 0 0">{{ saveError }}</p>
       <p *ngIf="form.get('full_name')?.errors?.['required']" style="color:#DC2626">Full name is required.</p>
       <p *ngIf="form.get('full_name')?.errors?.['pattern']" style="color:#DC2626">Full name must contain letters only.</p>
       <p *ngIf="form.get('phone')?.errors?.['pattern']" style="color:#DC2626">Phone format is invalid.</p>
@@ -85,6 +86,7 @@ export class ContactsComponent {
   editingContactId: number | null = null;
   loading = false;
   error = false;
+  saveError = '';
 
   form = this.fb.group({
     full_name: ['', [Validators.required, Validators.pattern(/^[A-Za-zÀ-ÿ'\-\s]+$/)]],
@@ -174,6 +176,7 @@ export class ContactsComponent {
 
   save(): void {
     if (this.form.invalid) return;
+    this.saveError = '';
 
     const { is_primary, ...rawPayload } = this.form.getRawValue();
     const contactPayload = {
@@ -192,14 +195,34 @@ export class ContactsComponent {
     };
 
     if (this.editingContactId) {
-      this.service.update(this.editingContactId, contactPayload).subscribe(() => {
-        this.service.updateLink(this.patientId, this.editingContactId!, Boolean(is_primary)).subscribe(done);
+      this.service.update(this.editingContactId, contactPayload).subscribe({
+        next: () => {
+          this.service.updateLink(this.patientId, this.editingContactId!, Boolean(is_primary)).subscribe({
+            next: done,
+            error: () => {
+              this.saveError = 'Unable to save contact changes.';
+            }
+          });
+        },
+        error: () => {
+          this.saveError = 'Unable to save contact changes.';
+        }
       });
       return;
     }
 
-    this.service.create(contactPayload).subscribe((contact) => {
-      this.service.link(this.patientId, contact.contact_id, Boolean(is_primary)).subscribe(done);
+    this.service.create(contactPayload).subscribe({
+      next: (contact) => {
+        this.service.link(this.patientId, contact.contact_id, Boolean(is_primary)).subscribe({
+          next: done,
+          error: () => {
+            this.saveError = 'Unable to save contact changes.';
+          }
+        });
+      },
+      error: () => {
+        this.saveError = 'Unable to save contact changes.';
+      }
     });
   }
 }
