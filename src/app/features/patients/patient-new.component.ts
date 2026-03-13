@@ -1,4 +1,5 @@
 import { Component, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
@@ -13,7 +14,7 @@ import { PatientFormComponent } from './patient-form.component';
 
 @Component({
   standalone: true,
-  imports: [MatCardModule, ReactiveFormsModule, MatFormFieldModule, MatInputModule, PatientFormComponent],
+  imports: [CommonModule, MatCardModule, ReactiveFormsModule, MatFormFieldModule, MatInputModule, PatientFormComponent],
   template: `
     <mat-card class="page-card">
       <h2 style="margin:0 0 1rem">New patient</h2>

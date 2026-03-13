@@ -100,10 +100,10 @@ export class ManifestationsComponent {
   findingsLabelByManifestation: Record<number, string> = {};
 
   form = this.fb.group({
-    evaluation_date: [null as Date | null, Validators.required],
-    system_code: ['', Validators.required],
-    finding_codes: [[], Validators.required],
-    notes: ['']
+    evaluation_date: this.fb.control<Date | null>(null, Validators.required),
+    system_code: this.fb.control<string | null>(null, Validators.required),
+    finding_codes: this.fb.control<string[]>([], Validators.required),
+    notes: this.fb.control<string>('')
   });
 
   constructor() {
@@ -161,7 +161,7 @@ export class ManifestationsComponent {
       const selectedCodes = ((raw.finding_codes as string[] | null) ?? []).filter((code) => !!code);
       const findingsPayload = selectedCodes.map((finding_code) => ({ finding_code, is_present: true }));
       this.manifestationFindingsService.replace(manifestationId, findingsPayload).subscribe(() => {
-        this.form.reset({ evaluation_date: null, system_code: '', finding_codes: [], notes: '' });
+        this.form.reset({ evaluation_date: null, system_code: null, finding_codes: [], notes: '' });
         this.findingsBySystem = [];
         this.editingId = null;
         this.load();
