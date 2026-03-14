@@ -22,14 +22,14 @@ export class TreatmentsService {
   }
 
   create(patientId: number, manifestationId: number, treatment: Partial<Treatment>): Observable<Treatment> {
-    const body = this.toApiPayload({ ...treatment, patient_id: patientId, manifestation_id: manifestationId });
+    const body = this.toApiPayload(treatment);
     console.log('Payload enviado a la API:', body);
     console.log('Payload JSON:', JSON.stringify(body, null, 2));
     return this.http.post<Treatment>(`${environment.apiBaseUrl}/patients/${patientId}/manifestations/${manifestationId}/treatments`, body);
   }
 
   update(treatmentId: number, payload: Partial<Treatment>): Observable<Treatment> {
-    const body = this.toApiPayload(payload, false);
+    const body = this.toApiPayload(payload);
     console.log('Payload enviado a la API:', body);
     console.log('Payload JSON:', JSON.stringify(body, null, 2));
     return this.http.patch<Treatment>(`${environment.apiBaseUrl}/treatments/${treatmentId}`, body);
@@ -48,7 +48,7 @@ export class TreatmentsService {
     };
   }
 
-  private toApiPayload(payload: Partial<Treatment>, includeContext = true): Partial<Treatment> & { patient?: number; manifestation_id?: number } {
+  private toApiPayload(payload: Partial<Treatment>): Partial<Treatment> {
     const optionalText = (value?: string | null): string | undefined => {
       const trimmed = value?.trim();
       return trimmed ? trimmed : undefined;
@@ -62,8 +62,9 @@ export class TreatmentsService {
       end_date: payload.end_date ?? undefined,
       status: optionalText(payload.status),
       notes: optionalText(payload.notes),
-      patient: includeContext ? payload.patient_id : undefined,
-      manifestation_id: includeContext ? payload.manifestation_id ?? undefined : undefined
+      patient_id: undefined,
+      manifestation_id: undefined,
+      treatment_id: undefined
     };
   }
 }

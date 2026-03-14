@@ -172,7 +172,7 @@ export class TreatmentsComponent {
       indication: raw.indication ?? undefined,
       start_date: this.formatDate(raw.start_date),
       end_date: this.formatDate(raw.end_date),
-      status: raw.status ?? undefined,
+      status: raw.status ? raw.status.toLowerCase() : undefined,
       notes: raw.notes ?? undefined
     };
 

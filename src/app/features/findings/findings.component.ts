@@ -26,7 +26,10 @@ import { FindingCatalog } from '../../shared/models/models';
         <mat-checkbox [(ngModel)]="selected[item.finding_code]" [ngModelOptions]="{standalone: true}">{{ item.finding_name }}</mat-checkbox>
       </div>
 
-      <button mat-flat-button color="primary" (click)="save()" [disabled]="loading || !!error">Save</button>
+      <div style="display:flex;gap:.5rem;align-items:center">
+        <button mat-flat-button color="primary" (click)="save()" [disabled]="loading || !!error">Save</button>
+        <button mat-stroked-button type="button" (click)="back()">Cancel</button>
+      </div>
       <p *ngIf="saved" style="color:#16A34A">Saved</p>
       <p *ngIf="saveError" style="color:#DC2626">{{ saveError }}</p>
     </mat-card>
@@ -115,6 +118,12 @@ export class FindingsComponent {
       finding_code: item.finding_code,
       is_present: !!this.selected[item.finding_code]
     }));
+
+    const uniqueCodes = new Set(findings.map((item) => item.finding_code));
+    if (uniqueCodes.size !== findings.length) {
+      this.saveError = 'Duplicate findings detected. Please review selection.';
+      return;
+    }
 
     console.log('Selected manifestation:', this.selectedManifestation);
     console.log('Manifestation ID used for findings:', manifestationId);

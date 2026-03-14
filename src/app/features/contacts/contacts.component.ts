@@ -49,7 +49,7 @@ type PatientContactListItem = Contact | {
         <mat-form-field><mat-label>Address</mat-label><input matInput formControlName="address" /></mat-form-field>
         <mat-form-field class="notes-field"><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="notes"></textarea></mat-form-field>
         <mat-checkbox formControlName="is_primary">Primary</mat-checkbox>
-        <div style="grid-column:1/-1;display:flex;gap:.75rem;justify-content:flex-end"><button mat-stroked-button type="button" (click)="cancelEdit()">Cancel</button><button mat-flat-button type="submit" color="primary" [disabled]="form.invalid">{{ editingContactId ? 'Update contact' : 'Save & link' }}</button></div>
+        <div style="grid-column:1/-1;display:flex;gap:.75rem;justify-content:flex-end"><button mat-stroked-button type="button" (click)="cancelEdit()">Cancel</button><button mat-flat-button type="submit" color="primary" [disabled]="form.invalid || saving">{{ editingContactId ? 'Update contact' : 'Save & link' }}</button></div>
       </form>
       <p *ngIf="saveError" style="color:#DC2626;margin:.5rem 0 0">{{ saveError }}</p>
       <p *ngIf="form.get('full_name')?.errors?.['required']" style="color:#DC2626">Full name is required.</p>
@@ -87,6 +87,7 @@ export class ContactsComponent {
   loading = false;
   error = false;
   saveError = '';
+  saving = false;
 
   form = this.fb.group({
     full_name: ['', [Validators.required, Validators.pattern(/^[A-Za-zÀ-ÿ'\-\s]+$/)]],
@@ -177,6 +178,7 @@ export class ContactsComponent {
   save(): void {
     if (this.form.invalid) return;
     this.saveError = '';
+    this.saving = true;
 
     const { is_primary, ...rawPayload } = this.form.getRawValue();
     const contactPayload = {
@@ -191,37 +193,46 @@ export class ContactsComponent {
     const done = () => {
       this.form.reset({ full_name: '', relationship: '', phone: '', email: '', address: '', notes: '', is_primary: false });
       this.editingContactId = null;
+      this.saving = false;
       this.load();
     };
 
     if (this.editingContactId) {
-      this.service.update(this.editingContactId, contactPayload).subscribe({
-        next: () => {
-          this.service.updateLink(this.patientId, this.editingContactId!, Boolean(is_primary)).subscribe({
-            next: done,
-            error: () => {
-              this.saveError = 'Unable to save contact changes.';
-            }
-          });
-        },
-        error: () => {
-          this.saveError = 'Unable to save contact changes.';
-        }
-      });
+      this.updateContactProfile(this.editingContactId, contactPayload, Boolean(is_primary), done);
       return;
     }
 
     this.service.create(contactPayload).subscribe({
       next: (contact) => {
-        this.service.link(this.patientId, contact.contact_id, Boolean(is_primary)).subscribe({
-          next: done,
-          error: () => {
-            this.saveError = 'Unable to save contact changes.';
-          }
-        });
+        this.updatePatientContactRelation(contact.contact_id, Boolean(is_primary), done, false);
       },
       error: () => {
         this.saveError = 'Unable to save contact changes.';
+        this.saving = false;
+      }
+    });
+  }
+
+  private updateContactProfile(contactId: number, contactPayload: Partial<Contact>, isPrimary: boolean, done: () => void): void {
+    this.service.update(contactId, contactPayload).subscribe({
+      next: () => this.updatePatientContactRelation(contactId, isPrimary, done, true),
+      error: () => {
+        this.saveError = 'Unable to save contact changes.';
+        this.saving = false;
+      }
+    });
+  }
+
+  private updatePatientContactRelation(contactId: number, isPrimary: boolean, done: () => void, useUpdate: boolean): void {
+    const relation$ = useUpdate
+      ? this.service.updateLink(this.patientId, contactId, isPrimary)
+      : this.service.link(this.patientId, contactId, isPrimary);
+
+    relation$.subscribe({
+      next: done,
+      error: () => {
+        this.saveError = 'Unable to save contact changes.';
+        this.saving = false;
       }
     });
   }

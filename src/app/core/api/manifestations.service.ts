@@ -35,7 +35,7 @@ export class ManifestationsService {
   }
 
   update(manifestationId: number, payload: Partial<Manifestation>): Observable<Manifestation> {
-    return this.http.patch<Manifestation>(`${environment.apiBaseUrl}/manifestations/${manifestationId}`, this.toApiPayload(payload, false)).pipe(map((item) => this.normalize(item)));
+    return this.http.patch<Manifestation>(`${environment.apiBaseUrl}/manifestations/${manifestationId}`, this.toApiPayload(payload)).pipe(map((item) => this.normalize(item)));
   }
 
   private normalize(item: Manifestation): Manifestation {
@@ -43,13 +43,13 @@ export class ManifestationsService {
     return { ...item, system, system_code: item.system_code ?? system ?? '' };
   }
 
-  private toApiPayload(payload: Partial<Manifestation>, includePatient = true): Partial<Manifestation> & { system?: string; patient?: number } {
+  private toApiPayload(payload: Partial<Manifestation>): Partial<Manifestation> & { system?: string } {
     const system = payload.system ?? payload.system_code;
-    const patient = payload.patient_id;
     return {
       ...payload,
       system,
-      patient: includePatient ? patient : undefined,
+      patient_id: undefined,
+      patient: undefined,
       system_code: undefined
     };
   }
