@@ -26,7 +26,7 @@ export class ContactsService {
   }
 
   update(contactId: number, payload: Partial<Contact>): Observable<Contact> {
-    return this.http.put<Contact>(`${environment.apiBaseUrl}/contacts/${contactId}`, payload);
+    return this.http.patch<Contact>(`${environment.apiBaseUrl}/contacts/${contactId}`, payload);
   }
 
   getById(contactId: number): Observable<Contact> {
@@ -53,7 +53,7 @@ export class ContactsService {
   }
 
   updateLink(patientId: number, contactId: number, is_primary: boolean): Observable<PatientContact> {
-    return this.http.put<PatientContact>(`${environment.apiBaseUrl}/patients/${patientId}/contacts/${contactId}`, {
+    return this.http.patch<PatientContact>(`${environment.apiBaseUrl}/patients/${patientId}/contacts/${contactId}`, {
       patient: patientId,
       contact: contactId,
       is_primary

@@ -19,10 +19,12 @@ import { AuthService } from '../auth/auth.service';
       <mat-nav-list>
         <a mat-list-item routerLink="/dashboard" routerLinkActive="is-active" (click)="closeOnMobile(sidenav)">Dashboard</a>
         <a mat-list-item routerLink="/patients" routerLinkActive="is-active" (click)="closeOnMobile(sidenav)">Patients</a>
-        <div class="menu-group-title">Catalogs</div>
-        <a mat-list-item routerLink="/catalogs/systems" routerLinkActive="is-active" (click)="closeOnMobile(sidenav)">Systems</a>
-        <a mat-list-item routerLink="/catalogs/findings" routerLinkActive="is-active" (click)="closeOnMobile(sidenav)">Findings</a>
-        <a mat-list-item routerLink="/catalogs/countries" routerLinkActive="is-active" (click)="closeOnMobile(sidenav)">Countries</a>
+        <ng-container *ngIf="canManageCatalogs">
+          <div class="menu-group-title">Catalogs</div>
+          <a mat-list-item routerLink="/catalogs/systems" routerLinkActive="is-active" (click)="closeOnMobile(sidenav)">Systems</a>
+          <a mat-list-item routerLink="/catalogs/findings" routerLinkActive="is-active" (click)="closeOnMobile(sidenav)">Findings</a>
+          <a mat-list-item routerLink="/catalogs/countries" routerLinkActive="is-active" (click)="closeOnMobile(sidenav)">Countries</a>
+        </ng-container>
       </mat-nav-list>
     </mat-sidenav>
 
@@ -44,6 +46,11 @@ export class ShellComponent {
   private router = inject(Router);
   isMobile = typeof window !== 'undefined' ? window.innerWidth <= 900 : false;
   pageTitle = 'Dashboard';
+
+  get canManageCatalogs(): boolean {
+    const role = this.auth.getRole()?.toLowerCase() ?? '';
+    return role.includes('admin');
+  }
 
   constructor() {
     this.updatePageTitle(this.router.url);

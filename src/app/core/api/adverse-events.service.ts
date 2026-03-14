@@ -26,7 +26,7 @@ export class AdverseEventsService {
   }
 
   update(aeId: number, payload: Partial<AdverseEvent>): Observable<AdverseEvent> {
-    return this.http.put<AdverseEvent>(`${environment.apiBaseUrl}/adverse-events/${aeId}`, this.toApiPayload(payload)).pipe(map((item) => this.normalize(item)));
+    return this.http.patch<AdverseEvent>(`${environment.apiBaseUrl}/adverse-events/${aeId}`, this.toApiPayload(payload)).pipe(map((item) => this.normalize(item)));
   }
 
   delete(aeId: number): Observable<void> {

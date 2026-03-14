@@ -26,7 +26,7 @@ export class GeneticTestsService {
   }
 
   update(testId: number, payload: Partial<GeneticTest>): Observable<GeneticTest> {
-    return this.http.put<GeneticTest>(`${environment.apiBaseUrl}/genetic-tests/${testId}`, payload);
+    return this.http.patch<GeneticTest>(`${environment.apiBaseUrl}/genetic-tests/${testId}`, payload);
   }
 
   delete(testId: number): Observable<void> {

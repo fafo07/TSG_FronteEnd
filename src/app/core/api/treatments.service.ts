@@ -29,10 +29,10 @@ export class TreatmentsService {
   }
 
   update(treatmentId: number, payload: Partial<Treatment>): Observable<Treatment> {
-    const body = this.toApiPayload(payload);
+    const body = this.toApiPayload(payload, false);
     console.log('Payload enviado a la API:', body);
     console.log('Payload JSON:', JSON.stringify(body, null, 2));
-    return this.http.put<Treatment>(`${environment.apiBaseUrl}/treatments/${treatmentId}`, body);
+    return this.http.patch<Treatment>(`${environment.apiBaseUrl}/treatments/${treatmentId}`, body);
   }
 
   delete(treatmentId: number): Observable<void> {
@@ -48,7 +48,7 @@ export class TreatmentsService {
     };
   }
 
-  private toApiPayload(payload: Partial<Treatment>): Partial<Treatment> & { patient?: number; manifestation_id?: number } {
+  private toApiPayload(payload: Partial<Treatment>, includeContext = true): Partial<Treatment> & { patient?: number; manifestation_id?: number } {
     const optionalText = (value?: string | null): string | undefined => {
       const trimmed = value?.trim();
       return trimmed ? trimmed : undefined;
@@ -62,8 +62,8 @@ export class TreatmentsService {
       end_date: payload.end_date ?? undefined,
       status: optionalText(payload.status),
       notes: optionalText(payload.notes),
-      patient: payload.patient_id,
-      manifestation_id: payload.manifestation_id ?? undefined
+      patient: includeContext ? payload.patient_id : undefined,
+      manifestation_id: includeContext ? payload.manifestation_id ?? undefined : undefined
     };
   }
 }

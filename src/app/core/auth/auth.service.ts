@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, catchError, map, of, tap } from 'rxjs';
+import { Observable, catchError, map, of, switchMap, tap } from 'rxjs';
 
 import { environment } from '../config/environment';
 import { AuthMeResponse, UserSession } from '../../shared/models/models';
@@ -45,12 +45,34 @@ export class AuthService {
         if (!current) return;
         this.store.set({ ...current, username: me.username ?? current.username, role: me.role ?? current.role });
       }),
-      catchError(() => of(null))
+      catchError(() =>
+        this.refreshToken().pipe(
+          switchMap((token) => {
+            if (!token) {
+              this.logout();
+              return of(null);
+            }
+
+            return this.me().pipe(
+              tap((me) => {
+                const current = this.store.session$.value;
+                if (!current) return;
+                this.store.set({ ...current, username: me.username ?? current.username, role: me.role ?? current.role });
+              }),
+              catchError(() => {
+                this.logout();
+                return of(null);
+              })
+            );
+          })
+        )
+      )
     );
   }
 
   logout(): void { this.store.clear(); }
   getToken(): string | null { return this.store.token; }
+  getRole(): string | null { return this.store.session$.value?.role ?? null; }
   isAuthenticated(): boolean { return !!this.store.token; }
 
   private normalizeSession(raw: Record<string, unknown>): UserSession {
