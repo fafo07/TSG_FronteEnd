@@ -1,6 +1,6 @@
-import { Component, inject } from '@angular/core';
+import { Component, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormGroupDirective, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -45,6 +45,13 @@ import { LoadingStateComponent } from '../../shared/ui/loading-state.component';
           <mat-label>System</mat-label>
           <mat-select formControlName="system_code" (selectionChange)="onSystemChange($event.value)">
             <mat-option *ngFor="let s of systems" [value]="s.system_code">{{ s.system_name }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field *ngIf="!editingId && selectedSystemForCreate">
+          <mat-label>Findings</mat-label>
+          <mat-select formControlName="finding_codes" multiple>
+            <mat-option *ngFor="let finding of createFindingsOptions" [value]="finding.finding_code">{{ finding.finding_name }}</mat-option>
           </mat-select>
         </mat-form-field>
 
@@ -106,10 +113,15 @@ export class ManifestationsComponent {
   findingsLabelByManifestation: Record<number, string> = {};
   selectedManifestation: Manifestation | null = null;
   selectedManifestationId: number | null = null;
+  createFindingsOptions: FindingCatalog[] = [];
+  selectedSystemForCreate: string | null = null;
+
+  @ViewChild(FormGroupDirective) private formGroupDirective?: FormGroupDirective;
 
   form = this.fb.group({
     evaluation_date: this.fb.control<Date | null>(null, Validators.required),
     system_code: this.fb.control<string | null>(null, Validators.required),
+    finding_codes: this.fb.control<string[]>([]),
     notes: this.fb.control<string>('')
   });
 
@@ -120,7 +132,24 @@ export class ManifestationsComponent {
   }
 
   onSystemChange(systemCode: string): void {
-    void systemCode;
+    if (this.editingId) return;
+
+    this.selectedSystemForCreate = systemCode || null;
+    this.form.patchValue({ finding_codes: [] });
+
+    if (!systemCode) {
+      this.createFindingsOptions = [];
+      return;
+    }
+
+    this.findingsCatalogService.list(1, systemCode, true).subscribe({
+      next: (response) => {
+        this.createFindingsOptions = response.results;
+      },
+      error: () => {
+        this.createFindingsOptions = [];
+      }
+    });
   }
 
   selectManifestation(item: Manifestation): void {
@@ -176,12 +205,10 @@ export class ManifestationsComponent {
       system: raw.system_code ?? undefined,
       notes: raw.notes ?? undefined
     };
+    const selectedFindingCodes = (raw.finding_codes ?? []).filter((code): code is string => !!code);
 
     const done = () => {
-      this.form.reset({ evaluation_date: null, system_code: null, notes: '' });
-      this.editingId = null;
-      this.selectedManifestation = null;
-      this.selectedManifestationId = null;
+      this.resetFormVisualState();
       this.saving = false;
       this.load();
     };
@@ -198,7 +225,26 @@ export class ManifestationsComponent {
     }
 
     this.service.create(this.patientId, payload).subscribe({
-      next: () => done(),
+      next: (created) => {
+        if (!selectedFindingCodes.length) {
+          done();
+          return;
+        }
+
+        this.manifestationFindingsService
+          .replace(
+            created.manifestation_id,
+            selectedFindingCodes.map((finding_code) => ({ finding_code, is_present: true }))
+          )
+          .subscribe({
+            next: done,
+            error: () => {
+              this.saving = false;
+              this.saveError = 'Manifestation created, but findings could not be saved.';
+              this.load();
+            }
+          });
+      },
       error: () => {
         this.saving = false;
         this.saveError = 'Unable to save manifestation changes.';
@@ -207,11 +253,29 @@ export class ManifestationsComponent {
   }
 
   cancelEdit(): void {
+    this.resetFormVisualState();
+  }
+
+  private resetFormVisualState(): void {
     this.editingId = null;
     this.selectedManifestation = null;
     this.selectedManifestationId = null;
-    this.form.reset({ evaluation_date: null, system_code: null, notes: '' });
+    this.selectedSystemForCreate = null;
+    this.createFindingsOptions = [];
     this.saveError = '';
+
+    const resetState = { evaluation_date: null, system_code: null, finding_codes: [], notes: '' };
+    this.form.reset(resetState);
+    this.form.setErrors(null);
+    this.form.markAsPristine();
+    this.form.markAsUntouched();
+    Object.values(this.form.controls).forEach((control) => {
+      control.setErrors(null);
+      control.markAsPristine();
+      control.markAsUntouched();
+    });
+    this.form.updateValueAndValidity({ emitEvent: false });
+    this.formGroupDirective?.resetForm(resetState);
   }
 
   private loadAllFindings(page: number): void {
