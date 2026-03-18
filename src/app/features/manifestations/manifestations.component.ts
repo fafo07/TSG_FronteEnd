@@ -70,8 +70,8 @@ import { LoadingStateComponent } from '../../shared/ui/loading-state.component';
         <ng-container matColumnDef="actions">
           <th mat-header-cell *matHeaderCellDef>Actions</th>
           <td mat-cell *matCellDef="let m">
-            <button mat-button [routerLink]="['/manifestations', m.manifestation_id, 'findings']">Edit findings</button>
-            <button mat-button color="primary" [routerLink]="['/patients', patientId, 'treatments']" [queryParams]="treatmentActionParams(m.manifestation_id)">{{ hasTreatment(m.manifestation_id) ? 'Edit treatment' : 'Add treatment' }}</button>
+            <button mat-button [routerLink]="['/manifestations', m.manifestation_id, 'findings']" (click)="selectManifestation(m)">Edit findings</button>
+            <button mat-button color="primary" [routerLink]="['/patients', patientId, 'treatments']" [queryParams]="treatmentActionParams(m.manifestation_id)" (click)="selectManifestation(m)">{{ hasTreatment(m.manifestation_id) ? 'Edit treatment' : 'Add treatment' }}</button>
             <button mat-button (click)="edit(m)">Edit</button>
           </td>
         </ng-container>
@@ -90,7 +90,7 @@ export class ManifestationsComponent {
   private manifestationFindingsService = inject(ManifestationFindingsService);
   private treatmentsService = inject(TreatmentsService);
 
-  patientId = Number(this.route.snapshot.paramMap.get('id'));
+  patientId = Number(this.route.snapshot.paramMap.get('patientId') ?? this.route.snapshot.paramMap.get('id'));
   items: Manifestation[] = [];
   systems: System[] = [];
   findingsCatalog: FindingCatalog[] = [];
@@ -104,6 +104,8 @@ export class ManifestationsComponent {
   saveError = '';
   treatmentIdByManifestation: Record<number, number> = {};
   findingsLabelByManifestation: Record<number, string> = {};
+  selectedManifestation: Manifestation | null = null;
+  selectedManifestationId: number | null = null;
 
   form = this.fb.group({
     evaluation_date: this.fb.control<Date | null>(null, Validators.required),
@@ -119,6 +121,13 @@ export class ManifestationsComponent {
 
   onSystemChange(systemCode: string): void {
     void systemCode;
+  }
+
+  selectManifestation(item: Manifestation): void {
+    this.selectedManifestation = item;
+    this.selectedManifestationId = item.manifestation_id;
+    console.log('Selected manifestation:', this.selectedManifestation);
+    console.log('Selected manifestation ID:', this.selectedManifestationId);
   }
 
   load(): void {
@@ -148,6 +157,10 @@ export class ManifestationsComponent {
   }
 
   edit(item: Manifestation): void {
+    this.selectedManifestation = item;
+    this.selectedManifestationId = item.manifestation_id;
+    console.log('Selected manifestation:', this.selectedManifestation);
+    console.log('Selected manifestation ID:', this.selectedManifestationId);
     this.editingId = item.manifestation_id;
     const systemCode = item.system_code || item.system || '';
     this.form.patchValue({ evaluation_date: this.parseDate(item.evaluation_date), system_code: systemCode, notes: item.notes ?? '' });
@@ -167,6 +180,8 @@ export class ManifestationsComponent {
     const done = () => {
       this.form.reset({ evaluation_date: null, system_code: null, notes: '' });
       this.editingId = null;
+      this.selectedManifestation = null;
+      this.selectedManifestationId = null;
       this.saving = false;
       this.load();
     };
@@ -193,6 +208,8 @@ export class ManifestationsComponent {
 
   cancelEdit(): void {
     this.editingId = null;
+    this.selectedManifestation = null;
+    this.selectedManifestationId = null;
     this.form.reset({ evaluation_date: null, system_code: null, notes: '' });
     this.saveError = '';
   }

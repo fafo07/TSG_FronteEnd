@@ -15,7 +15,7 @@ export class PatientEditComponent {
   private service = inject(PatientsService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
-  patientId = Number(this.route.snapshot.paramMap.get('id'));
+  patientId = Number(this.route.snapshot.paramMap.get('patientId') ?? this.route.snapshot.paramMap.get('id'));
   patient: Partial<Patient> | null = null;
 
   constructor() {

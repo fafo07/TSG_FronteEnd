@@ -79,7 +79,7 @@ export class ContactsComponent {
   private route = inject(ActivatedRoute);
   private service = inject(ContactsService);
 
-  patientId = Number(this.route.snapshot.paramMap.get('id'));
+  patientId = Number(this.route.snapshot.paramMap.get('patientId') ?? this.route.snapshot.paramMap.get('id'));
   contacts: Contact[] = [];
   primaryByContactId: Record<number, boolean> = {};
   columns = ['full_name', 'email', 'phone', 'primary', 'actions'];

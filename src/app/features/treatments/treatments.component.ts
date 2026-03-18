@@ -97,9 +97,10 @@ export class TreatmentsComponent {
   private findingsCatalogService = inject(FindingsCatalogService);
 
   today = new Date();
-  patientId = Number(this.route.snapshot.paramMap.get('id'));
+  patientId = Number(this.route.snapshot.paramMap.get('patientId') ?? this.route.snapshot.paramMap.get('id'));
   selectedManifestationId = Number(this.route.snapshot.queryParamMap.get('manifestationId')) || null;
   selectedTreatmentId = Number(this.route.snapshot.queryParamMap.get('treatmentId')) || null;
+  selectedTreatment: Treatment | null = null;
   manageMode = !!this.selectedManifestationId;
 
   items: Treatment[] = [];
@@ -182,8 +183,11 @@ export class TreatmentsComponent {
       manifestation_id: this.selectedManifestationId,
       treatment_id: this.selectedTreatmentId
     });
+    console.log('Selected manifestation ID:', this.selectedManifestationId);
+    console.log('Selected treatment ID:', this.selectedTreatmentId);
 
     const done = () => {
+      this.selectedTreatment = null;
       this.saving = false;
       this.load();
     };
@@ -209,6 +213,10 @@ export class TreatmentsComponent {
   }
 
   closeManageMode(): void {
+    this.selectedManifestationId = null;
+    this.selectedTreatmentId = null;
+    this.selectedTreatment = null;
+    this.form.reset({ medication: '', dose: '', indication: '', start_date: null, end_date: null, status: 'ACTIVE', notes: '' });
     void this.router.navigate(['/patients', this.patientId, 'treatments']);
   }
 
@@ -218,6 +226,7 @@ export class TreatmentsComponent {
     if (this.selectedTreatmentId) {
       const treatment = this.items.find((item) => item.treatment_id === this.selectedTreatmentId);
       if (treatment) {
+        this.selectedTreatment = treatment;
         this.form.patchValue({
           medication: treatment.medication ?? '',
           dose: treatment.dose ?? '',
@@ -234,6 +243,7 @@ export class TreatmentsComponent {
     const byManifestation = this.items.find((item) => item.manifestation_id === this.selectedManifestationId);
     if (byManifestation) {
       this.selectedTreatmentId = byManifestation.treatment_id;
+      this.selectedTreatment = byManifestation;
       this.form.patchValue({
         medication: byManifestation.medication ?? '',
         dose: byManifestation.dose ?? '',

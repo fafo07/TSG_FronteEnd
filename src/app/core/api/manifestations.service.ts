@@ -49,7 +49,6 @@ export class ManifestationsService {
       ...payload,
       system,
       patient_id: undefined,
-      patient: undefined,
       system_code: undefined
     };
   }

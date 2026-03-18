@@ -57,7 +57,7 @@ export class PatientOverviewComponent {
   private countriesService = inject(CountriesService);
   private contactsService = inject(ContactsService);
 
-  patientId = Number(this.route.snapshot.paramMap.get('id'));
+  patientId = Number(this.route.snapshot.paramMap.get('patientId') ?? this.route.snapshot.paramMap.get('id'));
   patient?: Patient;
   countryName = '';
   contacts: Contact[] = [];

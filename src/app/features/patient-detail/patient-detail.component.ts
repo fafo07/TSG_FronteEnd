@@ -20,5 +20,5 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
 })
 export class PatientDetailComponent {
   private route = inject(ActivatedRoute);
-  patientId = Number(this.route.snapshot.paramMap.get('id'));
+  patientId = Number(this.route.snapshot.paramMap.get('patientId') ?? this.route.snapshot.paramMap.get('id'));
 }

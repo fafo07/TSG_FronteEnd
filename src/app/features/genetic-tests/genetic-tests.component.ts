@@ -64,7 +64,7 @@ export class GeneticTestsComponent {
   private route = inject(ActivatedRoute);
   private service = inject(GeneticTestsService);
 
-  patientId = Number(this.route.snapshot.paramMap.get('id'));
+  patientId = Number(this.route.snapshot.paramMap.get('patientId') ?? this.route.snapshot.paramMap.get('id'));
   items: GeneticTest[] = [];
   columns = ['gene', 'test_date', 'actions'];
   editingId: number | null = null;

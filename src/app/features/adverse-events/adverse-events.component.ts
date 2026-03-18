@@ -67,7 +67,7 @@ export class AdverseEventsComponent {
   private service = inject(AdverseEventsService);
   private treatmentsService = inject(TreatmentsService);
 
-  patientId = Number(this.route.snapshot.paramMap.get('id'));
+  patientId = Number(this.route.snapshot.paramMap.get('patientId') ?? this.route.snapshot.paramMap.get('id'));
   items: AdverseEvent[] = [];
   treatments: Treatment[] = [];
   columns = ['event_name', 'event_date', 'treatment_id', 'actions'];

@@ -6,6 +6,7 @@ import { catchError, switchMap, throwError } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
 
 const AUTH_WHITELIST = ['/auth/login', '/auth/refresh'];
+const RETRY_HEADER = 'x-auth-retry';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
@@ -17,7 +18,8 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(authReq).pipe(
     catchError((error) => {
-      if (error.status !== 401 || isAuthRequest) return throwError(() => error);
+      const alreadyRetried = req.headers.has(RETRY_HEADER);
+      if (error.status !== 401 || isAuthRequest || alreadyRetried) return throwError(() => error);
 
       return auth.refreshToken().pipe(
         switchMap((newToken) => {
@@ -27,7 +29,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
             return throwError(() => error);
           }
 
-          return next(req.clone({ setHeaders: { Authorization: `Bearer ${newToken}` } }));
+          return next(req.clone({ setHeaders: { Authorization: `Bearer ${newToken}`, [RETRY_HEADER]: '1' } }));
         })
       );
     })

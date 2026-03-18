@@ -14,6 +14,7 @@ import { filter } from 'rxjs';
 
 import { CountriesService, SystemsService } from '../../core/api/catalogs.service';
 import { FindingsCatalogService } from '../../core/api/findings-catalog.service';
+import { AuthService } from '../../core/auth/auth.service';
 import { Country, FindingCatalog, System } from '../../shared/models/models';
 import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
 import { ErrorStateComponent } from '../../shared/ui/error-state.component';
@@ -35,19 +36,20 @@ import { PageHeaderComponent } from '../../shared/ui/page-header.component';
 
       <app-loading-state *ngIf="loading" />
       <app-error-state *ngIf="error" [message]="error" (retry)="load()" />
+      <p *ngIf="!canEditCatalogs" style="margin:.5rem 0;color:#475569">Read-only mode for your role.</p>
 
       <ng-container [ngSwitch]="mode" *ngIf="!loading && !error">
         <ng-container *ngSwitchCase="'countries'">
           <form [formGroup]="countryForm" (ngSubmit)="saveCountry()" style="display:grid;grid-template-columns:1fr 2fr auto;gap:1rem;align-items:center">
             <mat-form-field><mat-label>Code</mat-label><input matInput formControlName="country_code" [readonly]="!!editingCountryCode" /></mat-form-field>
             <mat-form-field><mat-label>Name</mat-label><input matInput formControlName="country_name" /></mat-form-field>
-            <button mat-flat-button type="submit" color="primary" [disabled]="countryForm.invalid">{{ editingCountryCode ? 'Update' : 'Save' }}</button>
+            <button mat-flat-button type="submit" color="primary" [disabled]="countryForm.invalid || !canEditCatalogs">{{ editingCountryCode ? 'Update' : 'Save' }}</button>
           </form>
           <app-empty-state *ngIf="!countries.length" message="No countries found" />
           <table *ngIf="countries.length" mat-table [dataSource]="countries" class="full-width">
             <ng-container matColumnDef="country_code"><th mat-header-cell *matHeaderCellDef>Code</th><td mat-cell *matCellDef="let c">{{ c.country_code }}</td></ng-container>
             <ng-container matColumnDef="country_name"><th mat-header-cell *matHeaderCellDef>Name</th><td mat-cell *matCellDef="let c">{{ c.country_name }}</td></ng-container>
-            <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Actions</th><td mat-cell *matCellDef="let c"><button mat-button (click)="editCountry(c)">Edit</button><button mat-button color="warn" (click)="deleteCountry(c)">Delete</button></td></ng-container>
+            <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Actions</th><td mat-cell *matCellDef="let c"><button mat-button [disabled]="!canEditCatalogs" (click)="editCountry(c)">Edit</button><button mat-button color="warn" [disabled]="!canEditCatalogs" (click)="deleteCountry(c)">Delete</button></td></ng-container>
             <tr mat-header-row *matHeaderRowDef="countryColumns"></tr><tr mat-row *matRowDef="let row; columns: countryColumns"></tr>
           </table>
           <div class="pagination-bar">
@@ -61,13 +63,13 @@ import { PageHeaderComponent } from '../../shared/ui/page-header.component';
           <form [formGroup]="systemForm" (ngSubmit)="saveSystem()" style="display:grid;grid-template-columns:1fr 2fr auto;gap:1rem;align-items:center">
             <mat-form-field><mat-label>Code</mat-label><input matInput formControlName="system_code" [readonly]="!!editingSystemCode" /></mat-form-field>
             <mat-form-field><mat-label>Name</mat-label><input matInput formControlName="system_name" /></mat-form-field>
-            <button mat-flat-button type="submit" color="primary" [disabled]="systemForm.invalid">{{ editingSystemCode ? 'Update' : 'Save' }}</button>
+            <button mat-flat-button type="submit" color="primary" [disabled]="systemForm.invalid || !canEditCatalogs">{{ editingSystemCode ? 'Update' : 'Save' }}</button>
           </form>
           <app-empty-state *ngIf="!systems.length" message="No systems found" />
           <table *ngIf="systems.length" mat-table [dataSource]="systems" class="full-width">
             <ng-container matColumnDef="system_code"><th mat-header-cell *matHeaderCellDef>Code</th><td mat-cell *matCellDef="let s">{{ s.system_code }}</td></ng-container>
             <ng-container matColumnDef="system_name"><th mat-header-cell *matHeaderCellDef>Name</th><td mat-cell *matCellDef="let s">{{ s.system_name }}</td></ng-container>
-            <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Actions</th><td mat-cell *matCellDef="let s"><button mat-button (click)="editSystem(s)">Edit</button><button mat-button color="warn" (click)="deleteSystem(s)">Delete</button></td></ng-container>
+            <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Actions</th><td mat-cell *matCellDef="let s"><button mat-button [disabled]="!canEditCatalogs" (click)="editSystem(s)">Edit</button><button mat-button color="warn" [disabled]="!canEditCatalogs" (click)="deleteSystem(s)">Delete</button></td></ng-container>
             <tr mat-header-row *matHeaderRowDef="systemColumns"></tr><tr mat-row *matRowDef="let row; columns: systemColumns"></tr>
           </table>
           <div class="pagination-bar">
@@ -84,7 +86,7 @@ import { PageHeaderComponent } from '../../shared/ui/page-header.component';
             <mat-form-field><mat-label>Finding name</mat-label><input matInput formControlName="finding_name" /><mat-error *ngIf="findingForm.get('finding_name')?.hasError('required')">Name is required.</mat-error><mat-error *ngIf="findingForm.get('finding_name')?.hasError('maxlength')">Max length is 255.</mat-error></mat-form-field>
             <mat-form-field class="notes-field" style="grid-column:1/-1"><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="description"></textarea></mat-form-field>
             <mat-checkbox formControlName="is_active">Active</mat-checkbox>
-            <div style="display:flex;justify-content:flex-end;grid-column:1/-1"><button mat-flat-button type="submit" color="primary" [disabled]="findingForm.invalid">{{ editingFindingCode ? 'Update' : 'Save' }}</button></div>
+            <div style="display:flex;justify-content:flex-end;grid-column:1/-1"><button mat-flat-button type="submit" color="primary" [disabled]="findingForm.invalid || !canEditCatalogs">{{ editingFindingCode ? 'Update' : 'Save' }}</button></div>
           </form>
           <app-empty-state *ngIf="!findings.length" message="No findings found" />
           <table *ngIf="findings.length" mat-table [dataSource]="findings" class="full-width">
@@ -92,7 +94,7 @@ import { PageHeaderComponent } from '../../shared/ui/page-header.component';
             <ng-container matColumnDef="system_code"><th mat-header-cell *matHeaderCellDef>System</th><td mat-cell *matCellDef="let f">{{ f.system || f.system_code }}</td></ng-container>
             <ng-container matColumnDef="finding_name"><th mat-header-cell *matHeaderCellDef>Finding</th><td mat-cell *matCellDef="let f">{{ f.finding_name }}</td></ng-container>
             <ng-container matColumnDef="is_active"><th mat-header-cell *matHeaderCellDef>Active</th><td mat-cell *matCellDef="let f">{{ f.is_active ? 'Yes' : 'No' }}</td></ng-container>
-            <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Actions</th><td mat-cell *matCellDef="let f"><button mat-button (click)="editFinding(f)">Edit</button></td></ng-container>
+            <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Actions</th><td mat-cell *matCellDef="let f"><button mat-button [disabled]="!canEditCatalogs" (click)="editFinding(f)">Edit</button></td></ng-container>
             <tr mat-header-row *matHeaderRowDef="findingColumns"></tr><tr mat-row *matRowDef="let row; columns: findingColumns"></tr>
           </table>
           <div class="pagination-bar">
@@ -111,6 +113,7 @@ export class CatalogsComponent {
   private systemsService = inject(SystemsService);
   private findingsService = inject(FindingsCatalogService);
   private router = inject(Router);
+  private auth = inject(AuthService);
 
   mode: 'countries' | 'systems' | 'findings' = 'systems';
   title = 'Catalogs - Systems';
@@ -124,6 +127,8 @@ export class CatalogsComponent {
   page = 1;
   hasNext = false;
   hasPrevious = false;
+  userRole = (this.auth.getRole() ?? '').toLowerCase();
+  canEditCatalogs = this.userRole === 'admin';
 
   editingCountryCode: string | null = null;
   editingSystemCode: string | null = null;
@@ -222,11 +227,13 @@ export class CatalogsComponent {
   }
 
   editCountry(country: Country): void {
+    if (!this.canEditCatalogs) return;
     this.editingCountryCode = country.country_code;
     this.countryForm.patchValue(country);
   }
 
   saveCountry(): void {
+    if (!this.canEditCatalogs) return;
     if (this.countryForm.invalid) return;
     const raw = this.countryForm.getRawValue();
 
@@ -246,16 +253,19 @@ export class CatalogsComponent {
   }
 
   deleteCountry(country: Country): void {
+    if (!this.canEditCatalogs) return;
     if (!window.confirm(`Delete country ${country.country_name}?`)) return;
     this.countriesService.delete(country.country_code).subscribe(() => this.load('countries', this.page));
   }
 
   editSystem(system: System): void {
+    if (!this.canEditCatalogs) return;
     this.editingSystemCode = system.system_code;
     this.systemForm.patchValue(system);
   }
 
   saveSystem(): void {
+    if (!this.canEditCatalogs) return;
     if (this.systemForm.invalid) return;
     const raw = this.systemForm.getRawValue();
 
@@ -275,11 +285,13 @@ export class CatalogsComponent {
   }
 
   deleteSystem(system: System): void {
+    if (!this.canEditCatalogs) return;
     if (!window.confirm(`Delete system ${system.system_name}?`)) return;
     this.systemsService.delete(system.system_code).subscribe(() => this.load('systems', this.page));
   }
 
   editFinding(finding: FindingCatalog): void {
+    if (!this.canEditCatalogs) return;
     this.editingFindingCode = finding.finding_code;
     this.findingForm.patchValue({
       finding_code: finding.finding_code,
@@ -291,6 +303,7 @@ export class CatalogsComponent {
   }
 
   saveFinding(): void {
+    if (!this.canEditCatalogs) return;
     if (this.findingForm.invalid) return;
     const raw = this.findingForm.getRawValue();
     const createPayload = {
