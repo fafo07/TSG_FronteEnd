@@ -1,7 +1,7 @@
-import { Component, inject } from '@angular/core';
+import { Component, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormGroupDirective, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatDatepickerModule } from '@angular/material/datepicker';
@@ -64,7 +64,7 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
         <mat-form-field class="notes-field"><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="notes"></textarea></mat-form-field>
         <div style="grid-column:1/-1;display:flex;gap:.5rem">
           <button mat-flat-button type="submit" color="primary" [disabled]="form.invalid || saving">{{ selectedTreatmentId ? 'Update treatment' : 'Create treatment' }}</button>
-          <button mat-stroked-button type="button" (click)="closeManageMode()">Done</button>
+          <button mat-stroked-button type="button" (click)="closeManageMode()">Cancel</button>
         </div>
       </form>
       <p *ngIf="saveError" style="color:#DC2626;margin:.5rem 0 0">{{ saveError }}</p>
@@ -113,6 +113,7 @@ export class TreatmentsComponent {
   private manifestationCache: Record<number, Manifestation | null> = {};
   private findingsByManifestation: Record<number, string[]> = {};
   private findingDetailCache: Record<string, FindingCatalog | null> = {};
+  @ViewChild(FormGroupDirective) private formGroupDirective?: FormGroupDirective;
 
   form = this.fb.group(
     {
@@ -187,7 +188,7 @@ export class TreatmentsComponent {
     console.log('Selected treatment ID:', this.selectedTreatmentId);
 
     const done = () => {
-      this.selectedTreatment = null;
+      this.resetManageState();
       this.saving = false;
       this.load();
     };
@@ -213,10 +214,7 @@ export class TreatmentsComponent {
   }
 
   closeManageMode(): void {
-    this.selectedManifestationId = null;
-    this.selectedTreatmentId = null;
-    this.selectedTreatment = null;
-    this.form.reset({ medication: '', dose: '', indication: '', start_date: null, end_date: null, status: 'ACTIVE', notes: '' });
+    this.resetManageState();
     void this.router.navigate(['/patients', this.patientId, 'treatments']);
   }
 
@@ -233,7 +231,7 @@ export class TreatmentsComponent {
           indication: treatment.indication ?? '',
           start_date: this.parseDate(treatment.start_date),
           end_date: this.parseDate(treatment.end_date),
-          status: treatment.status ?? 'ACTIVE',
+          status: this.normalizeStatus(treatment.status),
           notes: treatment.notes ?? ''
         });
       }
@@ -250,10 +248,36 @@ export class TreatmentsComponent {
         indication: byManifestation.indication ?? '',
         start_date: this.parseDate(byManifestation.start_date),
         end_date: this.parseDate(byManifestation.end_date),
-        status: byManifestation.status ?? 'ACTIVE',
+        status: this.normalizeStatus(byManifestation.status),
         notes: byManifestation.notes ?? ''
       });
     }
+  }
+
+  private resetManageState(): void {
+    this.selectedManifestationId = null;
+    this.selectedTreatmentId = null;
+    this.selectedTreatment = null;
+    this.manageMode = false;
+    this.saveError = '';
+
+    const resetState = { medication: '', dose: '', indication: '', start_date: null, end_date: null, status: 'ACTIVE', notes: '' };
+    this.form.reset(resetState);
+    this.form.setErrors(null);
+    this.form.markAsPristine();
+    this.form.markAsUntouched();
+    Object.values(this.form.controls).forEach((control) => {
+      control.setErrors(null);
+      control.markAsPristine();
+      control.markAsUntouched();
+    });
+    this.form.updateValueAndValidity({ emitEvent: false });
+    this.formGroupDirective?.resetForm(resetState);
+  }
+
+  private normalizeStatus(value?: string | null): 'ACTIVE' | 'INACTIVE' {
+    const normalized = (value ?? '').toUpperCase();
+    return normalized === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE';
   }
 
   private hydrateManifestationsAndFindings(): void {

@@ -78,7 +78,7 @@ import { LoadingStateComponent } from '../../shared/ui/loading-state.component';
           <th mat-header-cell *matHeaderCellDef>Actions</th>
           <td mat-cell *matCellDef="let m">
             <button mat-button [routerLink]="['/manifestations', m.manifestation_id, 'findings']" (click)="selectManifestation(m)">Edit findings</button>
-            <button mat-button color="primary" [routerLink]="['/patients', patientId, 'treatments']" [queryParams]="treatmentActionParams(m.manifestation_id)" (click)="selectManifestation(m)">{{ hasTreatment(m.manifestation_id) ? 'Edit treatment' : 'Add treatment' }}</button>
+            <button mat-button color="primary" [routerLink]="['/patients', patientId, 'treatments']" [queryParams]="treatmentActionParams(m.manifestation_id)" (click)="selectManifestation(m)">{{ hasTreatment(m.manifestation_id) ? 'View treatment' : 'Add treatment' }}</button>
             <button mat-button (click)="edit(m)">Edit</button>
           </td>
         </ng-container>
