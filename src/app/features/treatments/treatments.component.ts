@@ -98,10 +98,16 @@ export class TreatmentsComponent {
 
   today = new Date();
   patientId = Number(this.route.snapshot.paramMap.get('patientId') ?? this.route.snapshot.paramMap.get('id'));
-  selectedManifestationId = Number(this.route.snapshot.queryParamMap.get('manifestationId')) || null;
-  selectedTreatmentId = Number(this.route.snapshot.queryParamMap.get('treatmentId')) || null;
+  selectedManifestationId =
+    Number(this.route.snapshot.paramMap.get('manifestationId')) ||
+    Number(this.route.snapshot.queryParamMap.get('manifestationId')) ||
+    null;
+  selectedTreatmentId =
+    Number(this.route.snapshot.paramMap.get('treatmentId')) ||
+    Number(this.route.snapshot.queryParamMap.get('treatmentId')) ||
+    null;
   selectedTreatment: Treatment | null = null;
-  manageMode = !!this.selectedManifestationId;
+  manageMode = !!this.selectedManifestationId || !!this.selectedTreatmentId;
 
   items: Treatment[] = [];
   columns = ['system', 'findings', 'medication', 'dose', 'indication', 'status', 'dates', 'notes'];

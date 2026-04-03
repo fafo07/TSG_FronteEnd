@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { EMPTY, Observable, expand, map, reduce } from 'rxjs';
 
 import { environment } from '../config/environment';
 import { Country, System } from '../../shared/models/models';
@@ -26,4 +26,17 @@ export class SystemsService {
   create(payload: System): Observable<System> { return this.http.post<System>(`${environment.apiBaseUrl}/systems`, payload); }
   update(code: string, payload: Partial<System>): Observable<System> { return this.http.patch<System>(`${environment.apiBaseUrl}/systems/${code}`, payload); }
   delete(code: string): Observable<void> { return this.http.delete<void>(`${environment.apiBaseUrl}/systems/${code}`); }
+
+  getAllSystems(): Observable<System[]> {
+    return this.list(1).pipe(
+      expand((response) => {
+        if (!response.next) return EMPTY;
+        const match = /[?&]page=(\d+)/.exec(response.next);
+        const nextPage = Number(match?.[1] ?? 0);
+        return nextPage > 0 ? this.list(nextPage) : EMPTY;
+      }),
+      map((response) => response.results),
+      reduce((all, pageResults) => [...all, ...pageResults], [] as System[])
+    );
+  }
 }

@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, map } from 'rxjs';
+import { EMPTY, Observable, expand, map, reduce } from 'rxjs';
 
 import { environment } from '../config/environment';
 import { FindingCatalog } from '../../shared/models/models';
@@ -29,6 +29,19 @@ export class FindingsCatalogService {
 
   getByCode(findingCode: string): Observable<FindingCatalog> {
     return this.http.get<FindingCatalog>(`${environment.apiBaseUrl}/findings/${findingCode}`).pipe(map((item) => this.normalize(item)));
+  }
+
+  getAllFindings(isActive?: boolean): Observable<FindingCatalog[]> {
+    return this.list(1, undefined, isActive).pipe(
+      expand((response) => {
+        if (!response.next) return EMPTY;
+        const match = /[?&]page=(\d+)/.exec(response.next);
+        const nextPage = Number(match?.[1] ?? 0);
+        return nextPage > 0 ? this.list(nextPage, undefined, isActive) : EMPTY;
+      }),
+      map((response) => response.results),
+      reduce((all, pageResults) => [...all, ...pageResults], [] as FindingCatalog[])
+    );
   }
 
   private normalize(item: FindingCatalog): FindingCatalog {
