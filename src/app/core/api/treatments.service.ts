@@ -22,7 +22,7 @@ export class TreatmentsService {
   }
 
   create(patientId: number, manifestationId: number, treatment: Partial<Treatment>): Observable<Treatment> {
-    const body = this.toApiPayload(treatment);
+    const body = this.toApiPayload({ ...treatment, manifestation_id: manifestationId });
     console.log('Payload enviado a la API:', body);
     console.log('Payload JSON:', JSON.stringify(body, null, 2));
     return this.http.post<Treatment>(`${environment.apiBaseUrl}/patients/${patientId}/manifestations/${manifestationId}/treatments`, body);
@@ -63,7 +63,7 @@ export class TreatmentsService {
       status: optionalText(payload.status),
       notes: optionalText(payload.notes),
       patient_id: undefined,
-      manifestation_id: undefined,
+      manifestation_id: payload.manifestation_id ?? undefined,
       treatment_id: undefined
     };
   }

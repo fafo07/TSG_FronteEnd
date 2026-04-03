@@ -43,7 +43,7 @@ export class ManifestationsService {
     return { ...item, system, system_code: item.system_code ?? system ?? '' };
   }
 
-  private toApiPayload(payload: Partial<Manifestation>): Partial<Manifestation> & { system?: string } {
+  private toApiPayload(payload: Partial<Manifestation> & { patient?: number }): Partial<Manifestation> & { system?: string; patient?: number } {
     const system = payload.system ?? payload.system_code;
     return {
       ...payload,

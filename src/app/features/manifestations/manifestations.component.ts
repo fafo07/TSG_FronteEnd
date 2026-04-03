@@ -24,6 +24,8 @@ import { ErrorStateComponent } from '../../shared/ui/error-state.component';
 import { LoadingStateComponent } from '../../shared/ui/loading-state.component';
 import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
 
+type ManifestationFindingsPayload = { findings: Array<{ finding_code: string; is_present: boolean }> };
+
 @Component({
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, RouterLink, MatCardModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule, MatSelectModule, MatDatepickerModule, MatNativeDateModule, PatientTabsComponent, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent],
@@ -50,11 +52,11 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
 
         <mat-form-field>
           <mat-label>Findings</mat-label>
-          <mat-select formControlName="finding_codes" multiple [disabled]="!selectedSystem">
+          <mat-select formControlName="finding_codes" multiple [disabled]="!selectedSystemCode">
             <mat-option *ngFor="let finding of filteredFindings" [value]="finding.finding_code">{{ finding.finding_name }}</mat-option>
           </mat-select>
         </mat-form-field>
-        <p *ngIf="selectedSystem && !filteredFindings.length" style="grid-column:1/-1;margin:.25rem 0;color:#64748b">No findings available for selected system.</p>
+        <p *ngIf="selectedSystemCode && !filteredFindings.length" style="grid-column:1/-1;margin:.25rem 0;color:#64748b">No findings available for selected system.</p>
         <p *ngIf="systemChangeWarning" style="grid-column:1/-1;margin:.25rem 0;color:#b45309">{{ systemChangeWarning }}</p>
 
         <mat-form-field class="notes-field"><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="notes"></textarea></mat-form-field>
@@ -63,14 +65,14 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
           <button mat-flat-button type="submit" color="primary" [disabled]="form.invalid || isSaving">{{ isEditMode ? 'Update' : 'Save' }}</button>
         </div>
       </form>
-      <p *ngIf="saveError" style="color:#DC2626;margin:.5rem 0 0">{{ saveError }}</p>
+      <p *ngIf="errorMessage" style="color:#DC2626;margin:.5rem 0 0">{{ errorMessage }}</p>
 
       <app-loading-state *ngIf="isLoading" />
       <app-error-state *ngIf="error" message="Failed to load manifestations" (retry)="reloadCurrentRouteContext()" />
-      <app-empty-state *ngIf="!isLoading && !error && !items.length" message="No manifestations found" />
+      <app-empty-state *ngIf="!isLoading && !error && !manifestations.length" message="No manifestations found" />
 
-      <h3 *ngIf="!isLoading && !error && items.length" class="section-title">Manifestations list</h3>
-      <table *ngIf="!isLoading && !error && items.length" mat-table [dataSource]="items" class="full-width" style="margin-top:1rem">
+      <h3 *ngIf="!isLoading && !error && manifestations.length" class="section-title">Manifestations list</h3>
+      <table *ngIf="!isLoading && !error && manifestations.length" mat-table [dataSource]="manifestations" class="full-width" style="margin-top:1rem">
         <ng-container matColumnDef="evaluation_date"><th mat-header-cell *matHeaderCellDef>Date</th><td mat-cell *matCellDef="let m">{{ m.evaluation_date || '-' }}</td></ng-container>
         <ng-container matColumnDef="system_code"><th mat-header-cell *matHeaderCellDef>System</th><td mat-cell *matCellDef="let m">{{ m.system || m.system_code }}</td></ng-container>
         <ng-container matColumnDef="findings"><th mat-header-cell *matHeaderCellDef>Findings</th><td mat-cell *matCellDef="let m">{{ findingsLabelByManifestation[m.manifestation_id] || '-' }}</td></ng-container>
@@ -101,22 +103,25 @@ export class ManifestationsComponent {
   private manifestationFindingsService = inject(ManifestationFindingsService);
   private treatmentsService = inject(TreatmentsService);
 
-  patientId: number | null = null;
+  patientId = 0;
   manifestationId: number | null = null;
   isEditMode = false;
-  isLoading = false;
-  isSaving = false;
-  error = false;
-  saveError = '';
-  systemChangeWarning = '';
 
   allSystems: System[] = [];
   allFindings: FindingCatalog[] = [];
   filteredFindings: FindingCatalog[] = [];
+  selectedSystemCode: string | null = null;
   selectedFindingCodes: string[] = [];
-  selectedSystem: string | null = null;
 
-  items: Manifestation[] = [];
+  manifestations: Manifestation[] = [];
+  selectedManifestation: Manifestation | null = null;
+
+  isLoading = false;
+  isSaving = false;
+  error = false;
+  errorMessage: string | null = null;
+  systemChangeWarning = '';
+
   columns = ['evaluation_date', 'system_code', 'findings', 'has_treatment', 'notes', 'actions'];
   treatmentIdByManifestation: Record<number, number> = {};
   findingsLabelByManifestation: Record<number, string> = {};
@@ -132,8 +137,8 @@ export class ManifestationsComponent {
 
   constructor() {
     this.route.paramMap.subscribe((params) => {
-      this.patientId = Number(params.get('patientId') ?? params.get('id'));
-      this.manifestationId = Number(params.get('manifestationId')) || null;
+      this.patientId = Number(params.get('patientId') ?? params.get('id') ?? 0);
+      this.manifestationId = Number(params.get('manifestationId') ?? 0) || null;
       this.isEditMode = !!this.manifestationId;
       this.reloadCurrentRouteContext();
     });
@@ -143,6 +148,7 @@ export class ManifestationsComponent {
     if (!this.patientId) return;
     this.isLoading = true;
     this.error = false;
+    this.errorMessage = null;
     this.systemChangeWarning = '';
 
     forkJoin({
@@ -154,7 +160,7 @@ export class ManifestationsComponent {
       next: ({ systems, findings, manifestations, treatments }) => {
         this.allSystems = systems;
         this.allFindings = findings;
-        this.items = unwrapResults(manifestations);
+        this.manifestations = unwrapResults(manifestations);
         this.treatmentIdByManifestation = {};
         unwrapResults(treatments).forEach((treatment) => {
           if (treatment.manifestation_id) this.treatmentIdByManifestation[treatment.manifestation_id] = treatment.treatment_id;
@@ -176,11 +182,13 @@ export class ManifestationsComponent {
   }
 
   onSystemChange(systemCode: string): void {
-    const previousSystem = this.selectedSystem;
-    this.selectedSystem = systemCode || null;
-    this.filteredFindings = this.selectedSystem ? this.allFindings.filter((finding) => (finding.system_code || finding.system) === this.selectedSystem) : [];
+    const previousSystemCode = this.selectedSystemCode;
+    this.selectedSystemCode = systemCode || null;
+    this.filteredFindings = this.selectedSystemCode
+      ? this.allFindings.filter((finding) => finding.system === this.selectedSystemCode || finding.system_code === this.selectedSystemCode)
+      : [];
 
-    if (previousSystem && previousSystem !== this.selectedSystem && (this.form.getRawValue().finding_codes ?? []).length) {
+    if (previousSystemCode && previousSystemCode !== this.selectedSystemCode && (this.form.getRawValue().finding_codes ?? []).length) {
       this.systemChangeWarning = 'Changing system clears previously selected findings.';
       this.form.patchValue({ finding_codes: [] });
       this.selectedFindingCodes = [];
@@ -203,14 +211,28 @@ export class ManifestationsComponent {
     if (this.form.invalid || !this.patientId) return;
 
     this.isSaving = true;
-    this.saveError = '';
-    const raw = this.form.getRawValue();
-    const payload = {
-      evaluation_date: this.formatDate(raw.evaluation_date),
-      system: raw.system_code ?? undefined,
-      notes: raw.notes ?? undefined
+    this.errorMessage = null;
+
+    const manifestationPayload = this.buildManifestationPayload();
+    const findingsPayload = this.buildManifestationFindingsPayload();
+
+    const saveFindings = (targetManifestationId: number, onSuccess: () => void): void => {
+      console.log('Manifestation findings save debug:', {
+        patientId: this.patientId,
+        manifestationId: targetManifestationId,
+        selectedSystemCode: this.selectedSystemCode,
+        selectedFindingCodes: this.selectedFindingCodes,
+        findingsPayload
+      });
+      this.manifestationFindingsService.replace(targetManifestationId, findingsPayload.findings).subscribe({
+        next: onSuccess,
+        error: (error) => {
+          console.error('Manifestation findings replace failed:', error);
+          this.isSaving = false;
+          this.errorMessage = 'Unable to save manifestation findings. Please verify selected findings.';
+        }
+      });
     };
-    const findingsPayload = (raw.finding_codes ?? []).map((finding_code) => ({ finding_code, is_present: true }));
 
     const finish = () => {
       this.isSaving = false;
@@ -220,38 +242,23 @@ export class ManifestationsComponent {
     };
 
     if (this.isEditMode && this.manifestationId) {
-      this.service.update(this.manifestationId, payload).subscribe({
-        next: (updated) => {
-          this.manifestationFindingsService.replace(updated.manifestation_id, findingsPayload).subscribe({
-            next: finish,
-            error: () => {
-              this.isSaving = false;
-              this.saveError = 'Unable to save manifestation findings.';
-            }
-          });
-        },
-        error: () => {
+      this.service.update(this.manifestationId, manifestationPayload).subscribe({
+        next: (updated) => saveFindings(updated.manifestation_id, finish),
+        error: (error) => {
+          console.error('Manifestation update failed:', error);
           this.isSaving = false;
-          this.saveError = 'Unable to save manifestation changes.';
+          this.errorMessage = 'Unable to save manifestation changes.';
         }
       });
       return;
     }
 
-    this.service.create(this.patientId, payload).subscribe({
-      next: (created) => {
-        this.manifestationFindingsService.replace(created.manifestation_id, findingsPayload).subscribe({
-          next: finish,
-          error: () => {
-            this.isSaving = false;
-            this.saveError = 'Manifestation created, but findings could not be saved.';
-            this.reloadCurrentRouteContext();
-          }
-        });
-      },
-      error: () => {
+    this.service.create(this.patientId, manifestationPayload).subscribe({
+      next: (created) => saveFindings(created.manifestation_id, finish),
+      error: (error) => {
+        console.error('Manifestation create failed:', error);
         this.isSaving = false;
-        this.saveError = 'Unable to save manifestation changes.';
+        this.errorMessage = 'Unable to save manifestation changes.';
       }
     });
   }
@@ -262,17 +269,24 @@ export class ManifestationsComponent {
   }
 
   private loadManifestationForEdit(manifestationId: number): void {
-    if (!this.patientId) return;
     forkJoin({
       manifestation: this.service.getById(manifestationId),
       findings: this.manifestationFindingsService.get(manifestationId)
     }).subscribe({
       next: ({ manifestation, findings }) => {
-        const systemCode = manifestation.system_code || manifestation.system || null;
-        const selectedCodes = findings.filter((item) => item.is_present).map((item) => item.finding_code);
-        this.selectedSystem = systemCode;
-        this.filteredFindings = this.selectedSystem ? this.allFindings.filter((finding) => (finding.system_code || finding.system) === this.selectedSystem) : [];
+        this.selectedManifestation = manifestation;
+        const systemCode = manifestation.system || manifestation.system_code || null;
+        const selectedCodes = findings
+          .filter((item) => item.is_present)
+          .map((item) => item.finding_code)
+          .filter((code) => !!code);
+
+        this.selectedSystemCode = systemCode;
+        this.filteredFindings = this.selectedSystemCode
+          ? this.allFindings.filter((finding) => finding.system === this.selectedSystemCode || finding.system_code === this.selectedSystemCode)
+          : [];
         this.selectedFindingCodes = selectedCodes.filter((code) => this.filteredFindings.some((finding) => finding.finding_code === code));
+
         this.form.patchValue({
           evaluation_date: this.parseDate(manifestation.evaluation_date),
           system_code: systemCode,
@@ -283,7 +297,8 @@ export class ManifestationsComponent {
         this.form.markAsUntouched();
         this.isLoading = false;
       },
-      error: () => {
+      error: (error) => {
+        console.error('Manifestation edit preload failed:', error);
         this.error = true;
         this.isLoading = false;
       }
@@ -292,10 +307,11 @@ export class ManifestationsComponent {
 
   private resetFormVisualState(): void {
     this.systemChangeWarning = '';
-    this.selectedSystem = null;
+    this.selectedSystemCode = null;
     this.selectedFindingCodes = [];
     this.filteredFindings = [];
-    this.saveError = '';
+    this.selectedManifestation = null;
+    this.errorMessage = null;
 
     const resetState = { evaluation_date: null, system_code: null, finding_codes: [], notes: '' };
     this.form.reset(resetState);
@@ -312,12 +328,12 @@ export class ManifestationsComponent {
   }
 
   private loadManifestationFindingsLabels(): void {
-    if (!this.items.length) {
+    if (!this.manifestations.length) {
       this.findingsLabelByManifestation = {};
       return;
     }
 
-    const requests = this.items.map((manifestation) =>
+    const requests = this.manifestations.map((manifestation) =>
       this.manifestationFindingsService.get(manifestation.manifestation_id).pipe(
         map((rows) => ({
           manifestationId: manifestation.manifestation_id,
@@ -330,19 +346,37 @@ export class ManifestationsComponent {
       next: (results) => {
         this.findingsLabelByManifestation = {};
         results.forEach(({ manifestationId, codes }) => {
-          if (!codes.length) {
-            this.findingsLabelByManifestation[manifestationId] = '-';
-            return;
-          }
-          this.findingsLabelByManifestation[manifestationId] = codes
-            .map((code) => this.allFindings.find((finding) => finding.finding_code === code)?.finding_name ?? code)
-            .join(', ');
+          this.findingsLabelByManifestation[manifestationId] = codes.length
+            ? codes.map((code) => this.allFindings.find((finding) => finding.finding_code === code)?.finding_name ?? code).join(', ')
+            : '-';
         });
       },
       error: () => {
         this.findingsLabelByManifestation = {};
       }
     });
+  }
+
+  private buildManifestationPayload(): Partial<Manifestation> & { patient: number; system?: string } {
+    const raw = this.form.getRawValue();
+    this.selectedSystemCode = raw.system_code ?? null;
+    return {
+      patient: this.patientId,
+      system: this.selectedSystemCode ?? undefined,
+      evaluation_date: this.formatDate(raw.evaluation_date),
+      notes: raw.notes ?? undefined
+    };
+  }
+
+  private buildManifestationFindingsPayload(): ManifestationFindingsPayload {
+    const raw = this.form.getRawValue();
+    this.selectedFindingCodes = (raw.finding_codes ?? []).filter((code): code is string => !!code);
+    return {
+      findings: this.selectedFindingCodes.map((code) => ({
+        finding_code: code,
+        is_present: true
+      }))
+    };
   }
 
   private formatDate(value: Date | null | undefined): string | undefined {
