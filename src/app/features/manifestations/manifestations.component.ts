@@ -212,6 +212,7 @@ export class ManifestationsComponent {
 
     this.isSaving = true;
     this.errorMessage = null;
+    const routeManifestationId = Number(this.route.snapshot.paramMap.get('manifestationId') ?? 0) || this.manifestationId || null;
 
     const manifestationPayload = this.buildManifestationPayload();
     const findingsPayload = this.buildManifestationFindingsPayload();
@@ -220,6 +221,8 @@ export class ManifestationsComponent {
       console.log('Manifestation findings save debug:', {
         patientId: this.patientId,
         manifestationId: targetManifestationId,
+        routeManifestationId,
+        routeParams: this.route.snapshot.paramMap.keys.reduce((acc, key) => ({ ...acc, [key]: this.route.snapshot.paramMap.get(key) }), {} as Record<string, string | null>),
         selectedSystemCode: this.selectedSystemCode,
         selectedFindingCodes: this.selectedFindingCodes,
         findingsPayload
@@ -243,7 +246,16 @@ export class ManifestationsComponent {
 
     if (this.isEditMode && this.manifestationId) {
       this.service.update(this.manifestationId, manifestationPayload).subscribe({
-        next: (updated) => saveFindings(updated.manifestation_id, finish),
+        next: (updated) => {
+          console.log('Manifestation update response:', updated);
+          if (!routeManifestationId) {
+            this.isSaving = false;
+            this.errorMessage = 'Unable to save manifestation findings. Missing manifestation ID from route.';
+            console.error('Missing manifestationId in edit mode before findings replace.', { routeManifestationId, updated });
+            return;
+          }
+          saveFindings(routeManifestationId, finish);
+        },
         error: (error) => {
           console.error('Manifestation update failed:', error);
           this.isSaving = false;
@@ -254,7 +266,17 @@ export class ManifestationsComponent {
     }
 
     this.service.create(this.patientId, manifestationPayload).subscribe({
-      next: (created) => saveFindings(created.manifestation_id, finish),
+      next: (created) => {
+        console.log('Manifestation create response:', created);
+        const createdManifestationId = created.manifestation_id || (created as Manifestation & { manifestation?: number }).manifestation || null;
+        if (!createdManifestationId) {
+          this.isSaving = false;
+          this.errorMessage = 'Manifestation created but findings could not be saved because manifestation_id was missing.';
+          console.error('Missing manifestation_id in create response before findings replace.', created);
+          return;
+        }
+        saveFindings(createdManifestationId, finish);
+      },
       error: (error) => {
         console.error('Manifestation create failed:', error);
         this.isSaving = false;
