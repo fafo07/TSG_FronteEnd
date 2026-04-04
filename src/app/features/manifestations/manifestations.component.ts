@@ -267,14 +267,22 @@ export class ManifestationsComponent {
 
     this.service.create(this.patientId, manifestationPayload).subscribe({
       next: (created) => {
-        console.log('Manifestation create response:', created);
-        const createdManifestationId = created.manifestation_id || (created as Manifestation & { manifestation?: number }).manifestation || null;
+        console.log('create manifestation response:', created);
+        const createdManifestationId =
+          (created as Manifestation & { id?: number; data?: { manifestation_id?: number; id?: number } })?.manifestation_id ??
+          (created as Manifestation & { id?: number; data?: { manifestation_id?: number; id?: number } })?.id ??
+          (created as Manifestation & { id?: number; data?: { manifestation_id?: number; id?: number } })?.data?.manifestation_id ??
+          (created as Manifestation & { id?: number; data?: { manifestation_id?: number; id?: number } })?.data?.id;
+
         if (!createdManifestationId) {
           this.isSaving = false;
           this.errorMessage = 'Manifestation created but findings could not be saved because manifestation_id was missing.';
           console.error('Missing manifestation_id in create response before findings replace.', created);
           return;
         }
+        console.log('Using manifestationId:', createdManifestationId);
+        console.log('Selected findings:', this.selectedFindingCodes);
+        console.log('Findings payload:', findingsPayload);
         saveFindings(createdManifestationId, finish);
       },
       error: (error) => {
