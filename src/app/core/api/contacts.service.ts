@@ -35,6 +35,10 @@ export class ContactsService {
     return this.http.post<Contact>(`${environment.apiBaseUrl}/contacts`, payload);
   }
 
+  createForPatient(patientId: number, payload: Partial<Contact> & { is_primary: boolean }): Observable<Contact> {
+    return this.http.post<Contact>(`${environment.apiBaseUrl}/patients/${patientId}/contacts`, payload);
+  }
+
   update(contactId: number, payload: Partial<Contact>): Observable<Contact> {
     return this.http.patch<Contact>(`${environment.apiBaseUrl}/contacts/${contactId}`, payload);
   }

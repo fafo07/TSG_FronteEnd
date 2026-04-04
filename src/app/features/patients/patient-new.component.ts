@@ -49,6 +49,11 @@ import { PatientFormComponent } from './patient-form.component';
               <mat-error *ngIf="contactForm.get('email')?.hasError('invalidEmail')">Invalid email</mat-error>
             </mat-form-field>
 
+            <mat-form-field>
+              <mat-label>Address</mat-label>
+              <input matInput formControlName="address" />
+            </mat-form-field>
+
             <mat-form-field class="notes-field" style="grid-column:1/-1">
               <mat-label>Notes</mat-label>
               <textarea matInput rows="4" formControlName="notes"></textarea>
@@ -76,6 +81,7 @@ export class PatientNewComponent {
     relationship: [''],
     phone: ['', Validators.required],
     email: ['', [emailIfPresentValidator()]],
+    address: [''],
     notes: ['']
   });
 
@@ -102,47 +108,29 @@ export class PatientNewComponent {
           return this.resolveCreatedPatient(payload);
         }),
         tap((resolvedPatient) => console.log('resolved patientId', resolvedPatient?.patient_id ?? null)),
-        switchMap((resolvedPatient) =>
-          this.contactsService
-            .create({
-              full_name: contactData.full_name ?? undefined,
-              relationship: contactData.relationship ?? undefined,
-              phone: contactData.phone ?? undefined,
-              email: contactData.email ?? undefined,
-              notes: contactData.notes ?? undefined
-            })
-            .pipe(
-              switchMap((contactCreated) => {
-                console.log('create contact response', contactCreated);
-                const resolvedContactId =
-                  (contactCreated as { contact_id?: number; id?: number; data?: { contact_id?: number; id?: number } })?.contact_id ??
-                  (contactCreated as { contact_id?: number; id?: number; data?: { contact_id?: number; id?: number } })?.id ??
-                  (contactCreated as { contact_id?: number; id?: number; data?: { contact_id?: number; id?: number } })?.data?.contact_id ??
-                  (contactCreated as { contact_id?: number; id?: number; data?: { contact_id?: number; id?: number } })?.data?.id;
+        switchMap((resolvedPatient) => {
+          const patientId = resolvedPatient?.patient_id ?? null;
+          if (!patientId) {
+            console.error('Missing patientId/contactId after fallback resolution', { patientId, contactId: null });
+            this.errorMessage = 'Unable to create patient-contact relation because IDs could not be resolved.';
+            return EMPTY;
+          }
 
-                console.log('resolved contactId', resolvedContactId ?? null);
+          const primaryContactPayload = {
+            full_name: contactData.full_name ?? undefined,
+            relationship: contactData.relationship ?? undefined,
+            phone: contactData.phone ?? undefined,
+            email: contactData.email ?? undefined,
+            address: contactData.address ?? undefined,
+            notes: contactData.notes ?? undefined,
+            is_primary: true
+          };
 
-                if (!resolvedContactId) {
-                  this.errorMessage = 'Primary contact was created but could not be linked because contact_id is missing.';
-                  console.error('Missing contact_id in create contact response', contactCreated);
-                  return EMPTY;
-                }
-
-                const patientId = resolvedPatient?.patient_id ?? null;
-                const contactId = resolvedContactId;
-                if (!patientId || !contactId) {
-                  console.error('Missing patientId/contactId after fallback resolution', { patientId, contactId });
-                  this.errorMessage = 'Unable to create patient-contact relation because IDs could not be resolved.';
-                  return EMPTY;
-                }
-
-                console.log('creating patient-contact relation', { patientId, contactId });
-                return this.contactsService.link(patientId, contactId, true).pipe(
-                  tap(() => void this.router.navigate(['/patients', patientId, 'overview']))
-                );
-              })
-            )
-        ),
+          console.log('payload sent to POST /api/v1/patients/{patient_id}/contacts', primaryContactPayload);
+          return this.contactsService.createForPatient(patientId, primaryContactPayload).pipe(
+            tap(() => void this.router.navigate(['/patients', patientId, 'overview']))
+          );
+        }),
         catchError(() => {
           this.errorMessage = 'Unable to create patient and primary contact. Please try again.';
           return EMPTY;
