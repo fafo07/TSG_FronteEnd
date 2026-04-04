@@ -228,30 +228,34 @@ export class ContactsComponent {
   }
 
   private updatePatientContactRelation(contactId: number, isPrimary: boolean, done: () => void, useUpdate: boolean): void {
+    const payload = {
+      patient: this.patientId,
+      contact: contactId,
+      is_primary: !!isPrimary
+    };
     const relation$ = useUpdate
-      ? this.service.updateLink(this.patientId, contactId, !!isPrimary)
-      : this.service.link(this.patientId, contactId, isPrimary);
+      ? this.service.unlink(this.patientId, contactId).pipe(
+          switchMap(() => {
+            console.log('recreating patient-contact relation', {
+              patientId: this.patientId,
+              contactId,
+              payload,
+              isPrimaryType: typeof payload.is_primary
+            });
+            return this.service.link(this.patientId, contactId, payload.is_primary);
+          })
+        )
+      : this.service.link(this.patientId, contactId, payload.is_primary);
 
     if (useUpdate) {
-      const payload = {
-        patient: this.patientId,
-        contact: contactId,
-        is_primary: !!isPrimary
-      };
-      console.log('CONTACT RELATION UPDATE', {
-        patientId: this.patientId,
-        contactId,
-        is_primary: payload.is_primary,
-        type: typeof payload.is_primary,
-        payload
-      });
+      console.log('deleting patient-contact relation', { patientId: this.patientId, contactId });
     }
 
     relation$.subscribe({
       next: done,
       error: (error) => {
         if (useUpdate) {
-          console.error('Remaining issue is backend-side (SQL Server / serializer)', error);
+          console.error('Temporary relation workaround failed (delete + recreate).', error);
         }
         this.saveError = 'Unable to save contact changes.';
         this.saving = false;

@@ -10,6 +10,7 @@ import { MatInputModule } from '@angular/material/input';
 import { ContactsService } from '../../core/api/contacts.service';
 import { PatientsService } from '../../core/api/patients.service';
 import { Patient } from '../../shared/models/models';
+import { unwrapResults } from '../../shared/models/pagination';
 import { emailIfPresentValidator } from '../../shared/validators/domain.validators';
 import { PatientFormComponent } from './patient-form.component';
 
@@ -88,10 +89,19 @@ export class PatientNewComponent {
     this.errorMessage = '';
 
     const contactData = this.contactForm.getRawValue();
-    this.service
-      .create(payload)
-      .pipe(
-        switchMap(() => this.resolveCreatedPatient(payload)),
+    this.service.create(payload).pipe(
+        switchMap((patientCreated) => {
+          console.log('create patient response', patientCreated);
+          const patientIdFromResponse =
+            (patientCreated as Patient & { id?: number; data?: { patient_id?: number; id?: number } })?.patient_id ??
+            (patientCreated as Patient & { id?: number; data?: { patient_id?: number; id?: number } })?.id ??
+            (patientCreated as Patient & { id?: number; data?: { patient_id?: number; id?: number } })?.data?.patient_id ??
+            (patientCreated as Patient & { id?: number; data?: { patient_id?: number; id?: number } })?.data?.id;
+
+          if (patientIdFromResponse) return this.resolveCreatedPatient(payload, patientIdFromResponse);
+          return this.resolveCreatedPatient(payload);
+        }),
+        tap((resolvedPatient) => console.log('resolved patientId', resolvedPatient?.patient_id ?? null)),
         switchMap((resolvedPatient) =>
           this.contactsService
             .create({
@@ -102,29 +112,35 @@ export class PatientNewComponent {
               notes: contactData.notes ?? undefined
             })
             .pipe(
-              switchMap(() =>
-                this.resolveCreatedContact({
-                  full_name: contactData.full_name ?? undefined,
-                  relationship: contactData.relationship ?? undefined,
-                  phone: contactData.phone ?? undefined,
-                  email: contactData.email ?? undefined,
-                  notes: contactData.notes ?? undefined
-                }).pipe(
-                  switchMap((resolvedContact) => {
-                    const patientId = resolvedPatient?.patient_id ?? null;
-                    const contactId = resolvedContact?.contact_id ?? null;
-                    if (!patientId || !contactId) {
-                      console.error('Missing patientId/contactId after fallback resolution', { patientId, contactId });
-                      this.errorMessage = 'Unable to create patient-contact relation because IDs could not be resolved.';
-                      return EMPTY;
-                    }
+              switchMap((contactCreated) => {
+                console.log('create contact response', contactCreated);
+                const resolvedContactId =
+                  (contactCreated as { contact_id?: number; id?: number; data?: { contact_id?: number; id?: number } })?.contact_id ??
+                  (contactCreated as { contact_id?: number; id?: number; data?: { contact_id?: number; id?: number } })?.id ??
+                  (contactCreated as { contact_id?: number; id?: number; data?: { contact_id?: number; id?: number } })?.data?.contact_id ??
+                  (contactCreated as { contact_id?: number; id?: number; data?: { contact_id?: number; id?: number } })?.data?.id;
 
-                    return this.contactsService.link(patientId, contactId, true).pipe(
-                      tap(() => void this.router.navigate(['/patients', patientId, 'overview']))
-                    );
-                  })
-                )
-              )
+                console.log('resolved contactId', resolvedContactId ?? null);
+
+                if (!resolvedContactId) {
+                  this.errorMessage = 'Primary contact was created but could not be linked because contact_id is missing.';
+                  console.error('Missing contact_id in create contact response', contactCreated);
+                  return EMPTY;
+                }
+
+                const patientId = resolvedPatient?.patient_id ?? null;
+                const contactId = resolvedContactId;
+                if (!patientId || !contactId) {
+                  console.error('Missing patientId/contactId after fallback resolution', { patientId, contactId });
+                  this.errorMessage = 'Unable to create patient-contact relation because IDs could not be resolved.';
+                  return EMPTY;
+                }
+
+                console.log('creating patient-contact relation', { patientId, contactId });
+                return this.contactsService.link(patientId, contactId, true).pipe(
+                  tap(() => void this.router.navigate(['/patients', patientId, 'overview']))
+                );
+              })
             )
         ),
         catchError(() => {
@@ -138,9 +154,17 @@ export class PatientNewComponent {
       .subscribe();
   }
 
-  private resolveCreatedPatient(payload: Partial<Patient>) {
-    return this.service.listAll().pipe(
-      map((patients) => {
+  private resolveCreatedPatient(payload: Partial<Patient>, patientIdFromResponse?: number) {
+    if (patientIdFromResponse) {
+      return this.service.getById(patientIdFromResponse).pipe(
+        map((patient) => patient ?? null),
+        tap((resolvedPatient) => console.log('Resolved patient after create', resolvedPatient))
+      );
+    }
+
+    return this.service.list('', '', 1).pipe(
+      map((response) => {
+        const patients = unwrapResults(response);
         const matches = patients
           .filter((patient) =>
             this.sameText(patient.full_name, payload.full_name) &&
@@ -155,27 +179,6 @@ export class PatientNewComponent {
         const resolvedPatient = matches[0] ?? fallback;
         console.log('Resolved patient after create', resolvedPatient);
         return resolvedPatient;
-      })
-    );
-  }
-
-  private resolveCreatedContact(payload: { full_name?: string; relationship?: string; phone?: string; email?: string; notes?: string }) {
-    return this.contactsService.listAll().pipe(
-      map((contacts) => {
-        const matches = contacts
-          .filter((contact) =>
-            this.sameText(contact.full_name, payload.full_name) &&
-            this.sameText(contact.relationship, payload.relationship) &&
-            this.sameText(contact.phone, payload.phone) &&
-            this.sameText(contact.email, payload.email) &&
-            this.sameText(contact.notes, payload.notes)
-          )
-          .sort((a, b) => b.contact_id - a.contact_id);
-
-        const fallback = [...contacts].sort((a, b) => b.contact_id - a.contact_id)[0] ?? null;
-        const resolvedContact = matches[0] ?? fallback;
-        console.log('Resolved contact after create', resolvedContact);
-        return resolvedContact;
       })
     );
   }
