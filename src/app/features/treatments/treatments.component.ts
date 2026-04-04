@@ -48,7 +48,7 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
 
         <mat-form-field>
           <mat-label>End date</mat-label>
-          <input matInput [matDatepicker]="endPicker" [max]="today" formControlName="end_date" readonly />
+          <input matInput [matDatepicker]="endPicker" formControlName="end_date" readonly />
           <mat-datepicker-toggle matIconSuffix [for]="endPicker"></mat-datepicker-toggle>
           <mat-datepicker #endPicker></mat-datepicker>
         </mat-form-field>
@@ -240,6 +240,7 @@ export class TreatmentsComponent {
           status: this.normalizeStatus(treatment.status),
           notes: treatment.notes ?? ''
         });
+        this.resetFormVisualState();
       }
       return;
     }
@@ -257,6 +258,7 @@ export class TreatmentsComponent {
         status: this.normalizeStatus(byManifestation.status),
         notes: byManifestation.notes ?? ''
       });
+      this.resetFormVisualState();
     }
   }
 
@@ -279,6 +281,18 @@ export class TreatmentsComponent {
     });
     this.form.updateValueAndValidity({ emitEvent: false });
     this.formGroupDirective?.resetForm(resetState);
+    this.resetFormVisualState();
+  }
+
+  private resetFormVisualState(): void {
+    this.form.markAsPristine();
+    this.form.markAsUntouched();
+    Object.values(this.form.controls).forEach((control) => {
+      control.markAsPristine();
+      control.markAsUntouched();
+      control.updateValueAndValidity({ emitEvent: false });
+    });
+    this.form.updateValueAndValidity({ emitEvent: false });
   }
 
   private normalizeStatus(value?: string | null): 'ACTIVE' | 'INACTIVE' {

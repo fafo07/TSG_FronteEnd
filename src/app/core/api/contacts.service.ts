@@ -49,7 +49,11 @@ export class ContactsService {
   }
 
   updateLink(patientId: number, contactId: number, is_primary: boolean): Observable<PatientContact> {
-    return this.http.patch<PatientContact>(`${environment.apiBaseUrl}/patients/${patientId}/contacts/${contactId}`, { is_primary });
+    return this.http.put<PatientContact>(`${environment.apiBaseUrl}/patients/${patientId}/contacts/${contactId}`, {
+      patient: patientId,
+      contact: contactId,
+      is_primary
+    });
   }
 
   unlink(patientId: number, contactId: number): Observable<void> {

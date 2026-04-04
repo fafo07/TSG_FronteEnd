@@ -49,7 +49,7 @@ import { PageHeaderComponent } from '../../shared/ui/page-header.component';
           <table *ngIf="countries.length" mat-table [dataSource]="countries" class="full-width">
             <ng-container matColumnDef="country_code"><th mat-header-cell *matHeaderCellDef>Code</th><td mat-cell *matCellDef="let c">{{ c.country_code }}</td></ng-container>
             <ng-container matColumnDef="country_name"><th mat-header-cell *matHeaderCellDef>Name</th><td mat-cell *matCellDef="let c">{{ c.country_name }}</td></ng-container>
-            <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Actions</th><td mat-cell *matCellDef="let c"><button mat-button [disabled]="!canEditCatalogs" (click)="editCountry(c)">Edit</button><button mat-button color="warn" [disabled]="!canEditCatalogs" (click)="deleteCountry(c)">Delete</button></td></ng-container>
+            <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Actions</th><td mat-cell *matCellDef="let c"><button mat-button [disabled]="!canEditCatalogs" (click)="editCountry(c)">Edit</button></td></ng-container>
             <tr mat-header-row *matHeaderRowDef="countryColumns"></tr><tr mat-row *matRowDef="let row; columns: countryColumns"></tr>
           </table>
           <div class="pagination-bar">
@@ -69,7 +69,7 @@ import { PageHeaderComponent } from '../../shared/ui/page-header.component';
           <table *ngIf="systems.length" mat-table [dataSource]="systems" class="full-width">
             <ng-container matColumnDef="system_code"><th mat-header-cell *matHeaderCellDef>Code</th><td mat-cell *matCellDef="let s">{{ s.system_code }}</td></ng-container>
             <ng-container matColumnDef="system_name"><th mat-header-cell *matHeaderCellDef>Name</th><td mat-cell *matCellDef="let s">{{ s.system_name }}</td></ng-container>
-            <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Actions</th><td mat-cell *matCellDef="let s"><button mat-button [disabled]="!canEditCatalogs" (click)="editSystem(s)">Edit</button><button mat-button color="warn" [disabled]="!canEditCatalogs" (click)="deleteSystem(s)">Delete</button></td></ng-container>
+            <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Actions</th><td mat-cell *matCellDef="let s"><button mat-button [disabled]="!canEditCatalogs" (click)="editSystem(s)">Edit</button></td></ng-container>
             <tr mat-header-row *matHeaderRowDef="systemColumns"></tr><tr mat-row *matRowDef="let row; columns: systemColumns"></tr>
           </table>
           <div class="pagination-bar">
@@ -252,12 +252,6 @@ export class CatalogsComponent {
     });
   }
 
-  deleteCountry(country: Country): void {
-    if (!this.canEditCatalogs) return;
-    if (!window.confirm(`Delete country ${country.country_name}?`)) return;
-    this.countriesService.delete(country.country_code).subscribe(() => this.load('countries', this.page));
-  }
-
   editSystem(system: System): void {
     if (!this.canEditCatalogs) return;
     this.editingSystemCode = system.system_code;
@@ -282,12 +276,6 @@ export class CatalogsComponent {
       this.systemForm.reset({ system_code: '', system_name: '' });
       this.load('systems', this.page);
     });
-  }
-
-  deleteSystem(system: System): void {
-    if (!this.canEditCatalogs) return;
-    if (!window.confirm(`Delete system ${system.system_name}?`)) return;
-    this.systemsService.delete(system.system_code).subscribe(() => this.load('systems', this.page));
   }
 
   editFinding(finding: FindingCatalog): void {

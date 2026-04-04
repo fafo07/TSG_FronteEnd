@@ -145,6 +145,7 @@ export class ContactsComponent {
       notes: contact.notes ?? '',
       is_primary: !!this.primaryByContactId[contact.contact_id]
     });
+    this.resetFormVisualState();
   }
 
 
@@ -152,6 +153,7 @@ export class ContactsComponent {
   cancelEdit(): void {
     this.editingContactId = null;
     this.form.reset({ full_name: '', relationship: '', phone: '', email: '', address: '', notes: '', is_primary: false });
+    this.resetFormVisualState();
   }
 
   private normalizeContact(item: PatientContactListItem): Contact {
@@ -181,6 +183,7 @@ export class ContactsComponent {
     this.saving = true;
 
     const { is_primary, ...rawPayload } = this.form.getRawValue();
+    const normalizedIsPrimary = !!is_primary;
     const contactPayload = {
       full_name: rawPayload.full_name ?? undefined,
       relationship: rawPayload.relationship ?? undefined,
@@ -192,19 +195,20 @@ export class ContactsComponent {
 
     const done = () => {
       this.form.reset({ full_name: '', relationship: '', phone: '', email: '', address: '', notes: '', is_primary: false });
+      this.resetFormVisualState();
       this.editingContactId = null;
       this.saving = false;
       this.load();
     };
 
     if (this.editingContactId) {
-      this.updateContactProfile(this.editingContactId, contactPayload, Boolean(is_primary), done);
+      this.updateContactProfile(this.editingContactId, contactPayload, normalizedIsPrimary, done);
       return;
     }
 
     this.service.create(contactPayload).subscribe({
       next: (contact) => {
-        this.updatePatientContactRelation(contact.contact_id, Boolean(is_primary), done, false);
+        this.updatePatientContactRelation(contact.contact_id, normalizedIsPrimary, done, false);
       },
       error: () => {
         this.saveError = 'Unable to save contact changes.';
@@ -225,15 +229,44 @@ export class ContactsComponent {
 
   private updatePatientContactRelation(contactId: number, isPrimary: boolean, done: () => void, useUpdate: boolean): void {
     const relation$ = useUpdate
-      ? this.service.updateLink(this.patientId, contactId, isPrimary)
+      ? this.service.updateLink(this.patientId, contactId, !!isPrimary)
       : this.service.link(this.patientId, contactId, isPrimary);
+
+    if (useUpdate) {
+      const payload = {
+        patient: this.patientId,
+        contact: contactId,
+        is_primary: !!isPrimary
+      };
+      console.log('CONTACT RELATION UPDATE', {
+        patientId: this.patientId,
+        contactId,
+        is_primary: payload.is_primary,
+        type: typeof payload.is_primary,
+        payload
+      });
+    }
 
     relation$.subscribe({
       next: done,
-      error: () => {
+      error: (error) => {
+        if (useUpdate) {
+          console.error('Remaining issue is backend-side (SQL Server / serializer)', error);
+        }
         this.saveError = 'Unable to save contact changes.';
         this.saving = false;
       }
     });
+  }
+
+  private resetFormVisualState(): void {
+    this.form.markAsPristine();
+    this.form.markAsUntouched();
+    Object.values(this.form.controls).forEach((control) => {
+      control.markAsPristine();
+      control.markAsUntouched();
+      control.updateValueAndValidity({ emitEvent: false });
+    });
+    this.form.updateValueAndValidity({ emitEvent: false });
   }
 }

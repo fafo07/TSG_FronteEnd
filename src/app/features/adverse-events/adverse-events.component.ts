@@ -97,6 +97,7 @@ export class AdverseEventsComponent {
     this.service.listByPatient(this.patientId).subscribe({
       next: (data) => {
         this.items = unwrapResults(data);
+        this.resetFormVisualState();
         this.loading = false;
       },
       error: () => {
@@ -109,6 +110,7 @@ export class AdverseEventsComponent {
   startEdit(item: AdverseEvent): void {
     this.editingId = item.ae_id;
     this.form.patchValue({ ...item, event_date: this.parseDate(item.event_date), treatment_id: item.treatment_id ?? item.treatment ?? null });
+    this.resetFormVisualState();
   }
 
   resolveTreatmentLabel(item: AdverseEvent): string {
@@ -121,6 +123,7 @@ export class AdverseEventsComponent {
   cancelEdit(): void {
     this.editingId = null;
     this.form.reset({ event_name: '', event_date: null, severity: 'MILD', action_taken: '', notes: '', treatment_id: null });
+    this.resetFormVisualState();
   }
 
   remove(item: AdverseEvent): void {
@@ -144,6 +147,7 @@ export class AdverseEventsComponent {
 
     const done = () => {
       this.form.reset({ event_name: '', event_date: null, severity: 'MILD', action_taken: '', notes: '', treatment_id: null });
+      this.resetFormVisualState();
       this.editingId = null;
       this.saving = false;
       this.load();
@@ -182,5 +186,16 @@ export class AdverseEventsComponent {
     const [y, m, d] = value.split('-').map((n) => Number(n));
     if (!y || !m || !d) return null;
     return new Date(y, m - 1, d);
+  }
+
+  private resetFormVisualState(): void {
+    this.form.markAsPristine();
+    this.form.markAsUntouched();
+    Object.values(this.form.controls).forEach((control) => {
+      control.markAsPristine();
+      control.markAsUntouched();
+      control.updateValueAndValidity({ emitEvent: false });
+    });
+    this.form.updateValueAndValidity({ emitEvent: false });
   }
 }

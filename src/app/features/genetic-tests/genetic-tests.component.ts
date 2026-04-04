@@ -86,6 +86,7 @@ export class GeneticTestsComponent {
     this.service.listByPatient(this.patientId).subscribe({
       next: (data) => {
         this.items = unwrapResults(data);
+        this.resetFormVisualState();
         this.loading = false;
       },
       error: () => {
@@ -98,11 +99,13 @@ export class GeneticTestsComponent {
   startEdit(item: GeneticTest): void {
     this.editingId = item.test_id;
     this.form.patchValue({ ...item, test_date: this.parseDate(item.test_date) });
+    this.resetFormVisualState();
   }
 
   cancelEdit(): void {
     this.editingId = null;
     this.form.reset({ gene: '', test_date: null, variant: '', lab_name: '', notes: '' });
+    this.resetFormVisualState();
   }
 
   remove(item: GeneticTest): void {
@@ -125,6 +128,7 @@ export class GeneticTestsComponent {
 
     const done = () => {
       this.form.reset({ gene: '', test_date: null, variant: '', lab_name: '', notes: '' });
+      this.resetFormVisualState();
       this.editingId = null;
       this.load();
     };
@@ -150,5 +154,16 @@ export class GeneticTestsComponent {
     const [y, m, d] = value.split('-').map((n) => Number(n));
     if (!y || !m || !d) return null;
     return new Date(y, m - 1, d);
+  }
+
+  private resetFormVisualState(): void {
+    this.form.markAsPristine();
+    this.form.markAsUntouched();
+    Object.values(this.form.controls).forEach((control) => {
+      control.markAsPristine();
+      control.markAsUntouched();
+      control.updateValueAndValidity({ emitEvent: false });
+    });
+    this.form.updateValueAndValidity({ emitEvent: false });
   }
 }
