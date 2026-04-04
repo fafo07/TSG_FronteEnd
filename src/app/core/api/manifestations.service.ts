@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, map } from 'rxjs';
+import { Observable, expand, map, reduce } from 'rxjs';
 
 import { environment } from '../config/environment';
 import { Manifestation } from '../../shared/models/models';
@@ -26,6 +26,16 @@ export class ManifestationsService {
       );
   }
 
+  listAllByPatient(patientId: number, system_code?: string, from?: string, to?: string): Observable<Manifestation[]> {
+    return this.listByPatient(patientId, system_code, from, to).pipe(
+      expand((page) => {
+        if (Array.isArray(page) || !page.next) return [];
+        return this.fetchPageByUrl(page.next);
+      }),
+      reduce((acc, page) => [...acc, ...unwrapResults(page)], [] as Manifestation[])
+    );
+  }
+
   create(patientId: number, payload: Partial<Manifestation>): Observable<Manifestation> {
     return this.http.post<Manifestation>(`${environment.apiBaseUrl}/patients/${patientId}/manifestations`, this.toApiPayload(payload)).pipe(map((item) => this.normalize(item)));
   }
@@ -38,6 +48,16 @@ export class ManifestationsService {
     return this.http.patch<Manifestation>(`${environment.apiBaseUrl}/manifestations/${manifestationId}`, this.toApiPayload(payload)).pipe(map((item) => this.normalize(item)));
   }
 
+  private fetchPageByUrl(url: string): Observable<PaginatedResponse<Manifestation> | Manifestation[]> {
+    const resolvedUrl = url.startsWith('http') ? url : `${environment.apiBaseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
+    return this.http.get<PaginatedResponse<Manifestation> | Manifestation[]>(resolvedUrl).pipe(
+      map((data) => {
+        const normalized = unwrapResults(data).map((item) => this.normalize(item));
+        return Array.isArray(data) ? normalized : { ...data, results: normalized };
+      })
+    );
+  }
+
   private normalize(item: Manifestation): Manifestation {
     const system = item.system ?? item.system_code;
     return { ...item, system, system_code: item.system_code ?? system ?? '' };
@@ -48,6 +68,7 @@ export class ManifestationsService {
     return {
       ...payload,
       system,
+      patient: undefined,
       patient_id: undefined,
       system_code: undefined
     };

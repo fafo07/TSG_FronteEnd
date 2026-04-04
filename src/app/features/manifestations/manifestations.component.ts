@@ -268,22 +268,52 @@ export class ManifestationsComponent {
     this.service.create(this.patientId, manifestationPayload).subscribe({
       next: (created) => {
         console.log('create manifestation response:', created);
-        const createdManifestationId =
+        const createdManifestationIdFromResponse =
           (created as Manifestation & { id?: number; data?: { manifestation_id?: number; id?: number } })?.manifestation_id ??
           (created as Manifestation & { id?: number; data?: { manifestation_id?: number; id?: number } })?.id ??
           (created as Manifestation & { id?: number; data?: { manifestation_id?: number; id?: number } })?.data?.manifestation_id ??
           (created as Manifestation & { id?: number; data?: { manifestation_id?: number; id?: number } })?.data?.id;
 
-        if (!createdManifestationId) {
-          this.isSaving = false;
-          this.errorMessage = 'Manifestation created but findings could not be saved because manifestation_id was missing.';
-          console.error('Missing manifestation_id in create response before findings replace.', created);
+        if (createdManifestationIdFromResponse) {
+          console.log('matched manifestation used after create:', null);
+          console.log('manifestation_id chosen:', createdManifestationIdFromResponse);
+          console.log('final findings payload:', findingsPayload);
+          saveFindings(createdManifestationIdFromResponse, finish);
           return;
         }
-        console.log('Using manifestationId:', createdManifestationId);
-        console.log('Selected findings:', this.selectedFindingCodes);
-        console.log('Findings payload:', findingsPayload);
-        saveFindings(createdManifestationId, finish);
+
+        this.service.listAllByPatient(this.patientId).subscribe({
+          next: (allManifestations) => {
+            console.log('fetched manifestations list:', allManifestations);
+            const matchingManifestations = allManifestations
+              .filter((manifestation) =>
+                (manifestation.system ?? manifestation.system_code ?? '') === (manifestationPayload.system ?? '') &&
+                (manifestation.evaluation_date ?? '') === (manifestationPayload.evaluation_date ?? '') &&
+                (manifestation.notes ?? '') === (manifestationPayload.notes ?? '')
+              )
+              .sort((a, b) => (b.manifestation_id ?? 0) - (a.manifestation_id ?? 0));
+
+            const matchedManifestation = matchingManifestations[0] ?? null;
+            const resolvedManifestationId = matchedManifestation?.manifestation_id ?? null;
+            console.log('matched manifestation used after create:', matchedManifestation);
+            console.log('manifestation_id chosen:', resolvedManifestationId);
+            console.log('final findings payload:', findingsPayload);
+
+            if (!resolvedManifestationId) {
+              this.isSaving = false;
+              this.errorMessage = 'Manifestation created but findings could not be saved because manifestation_id was missing.';
+              console.error('Missing manifestation_id after create and list fallback.', { created, allManifestations, manifestationPayload });
+              return;
+            }
+
+            saveFindings(resolvedManifestationId, finish);
+          },
+          error: (error) => {
+            console.error('Failed to fetch manifestations list for create fallback:', error);
+            this.isSaving = false;
+            this.errorMessage = 'Manifestation created but findings could not be saved because manifestation_id could not be resolved.';
+          }
+        });
       },
       error: (error) => {
         console.error('Manifestation create failed:', error);
