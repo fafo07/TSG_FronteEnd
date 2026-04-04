@@ -8,12 +8,21 @@ import { PaginatedResponse, unwrapResults } from '../../shared/models/pagination
 
 export type PatientContactCreateWithContactPayload = {
   full_name: string;
-  relationship?: string;
-  phone?: string;
-  email?: string;
-  address?: string;
-  notes?: string;
+  relationship?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  address?: string | null;
+  notes?: string | null;
   is_primary: boolean;
+};
+
+export type ContactCreatePayload = {
+  full_name: string;
+  relationship: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  notes: string | null;
 };
 
 @Injectable({ providedIn: 'root' })
@@ -41,20 +50,37 @@ export class ContactsService {
     );
   }
 
-  create(payload: Partial<Contact>): Observable<Contact> {
+  create(payload: ContactCreatePayload): Observable<Contact> {
     return this.http.post<Contact>(`${environment.apiBaseUrl}/contacts`, payload);
   }
 
-  buildCreateWithContactPayload(payload: Partial<Contact> & { is_primary: boolean }): PatientContactCreateWithContactPayload {
+  buildContactPayload(formValue: Partial<Contact>): ContactCreatePayload {
     return {
-      full_name: payload.full_name ?? '',
-      relationship: payload.relationship ?? undefined,
-      phone: payload.phone ?? undefined,
-      email: payload.email ?? undefined,
-      address: payload.address ?? undefined,
-      notes: payload.notes ?? undefined,
-      is_primary: !!payload.is_primary
+      full_name: (formValue.full_name ?? '').trim(),
+      relationship: this.normalizeOptional(formValue.relationship),
+      phone: this.normalizeOptional(formValue.phone),
+      email: this.normalizeOptional(formValue.email),
+      address: this.normalizeOptional(formValue.address),
+      notes: this.normalizeOptional(formValue.notes)
     };
+  }
+
+  hasContactData(formValue: Partial<Contact>): boolean {
+    const payload = this.buildContactPayload(formValue);
+    return !!payload.full_name || !!payload.relationship || !!payload.phone || !!payload.email || !!payload.address || !!payload.notes;
+  }
+
+  buildPatientContactRelationPayload(patientId: number, contactId: number, isPrimary: boolean): { patient: number; contact: number; is_primary: boolean } {
+    return {
+      patient: patientId,
+      contact: contactId,
+      is_primary: !!isPrimary
+    };
+  }
+
+  buildCreateWithContactPayload(payload: Partial<Contact> & { is_primary: boolean }): PatientContactCreateWithContactPayload {
+    const contactPayload = this.buildContactPayload(payload);
+    return { ...contactPayload, is_primary: !!payload.is_primary };
   }
 
   createForPatient(patientId: number, payload: Partial<Contact> & { is_primary: boolean }): Observable<Contact> {
@@ -70,7 +96,7 @@ export class ContactsService {
     );
   }
 
-  update(contactId: number, payload: Partial<Contact>): Observable<Contact> {
+  update(contactId: number, payload: ContactCreatePayload): Observable<Contact> {
     return this.http.patch<Contact>(`${environment.apiBaseUrl}/contacts/${contactId}`, payload);
   }
 
@@ -119,5 +145,10 @@ export class ContactsService {
           return Array.isArray(data) ? list : { ...data, results: list };
         })
       );
+  }
+
+  private normalizeOptional(value?: string | null): string | null {
+    const normalized = (value ?? '').trim();
+    return normalized ? normalized : null;
   }
 }

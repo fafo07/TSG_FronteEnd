@@ -178,8 +178,10 @@ export class ContactsComponent {
   }
 
   save(): void {
+    if (this.saving) return;
     if (this.form.invalid) return;
     if (!this.patientId) {
+      console.log('route patient_id', this.patientId);
       console.error('Missing patientId for contact creation');
       return;
     }
@@ -188,14 +190,7 @@ export class ContactsComponent {
 
     const { is_primary, ...rawPayload } = this.form.getRawValue();
     const normalizedIsPrimary = !!is_primary;
-    const contactPayload = {
-      full_name: rawPayload.full_name ?? undefined,
-      relationship: rawPayload.relationship ?? undefined,
-      phone: rawPayload.phone ?? undefined,
-      email: rawPayload.email ?? undefined,
-      address: rawPayload.address ?? undefined,
-      notes: rawPayload.notes ?? undefined
-    };
+    const contactPayload = this.service.buildContactPayload(rawPayload);
 
     const done = () => {
       this.form.reset({ full_name: '', relationship: '', phone: '', email: '', address: '', notes: '', is_primary: false });
@@ -210,27 +205,46 @@ export class ContactsComponent {
       return;
     }
 
-    const createPayload = {
-      ...contactPayload,
-      is_primary: normalizedIsPrimary
-    };
-    const createWithContactPayload = this.service.buildCreateWithContactPayload(createPayload);
-    if (!createWithContactPayload.full_name.trim()) {
+    if (!contactPayload.full_name.trim()) {
       this.saveError = 'Full name is required.';
       this.saving = false;
       return;
     }
 
-    this.service.createForPatient(this.patientId, createWithContactPayload).subscribe({
-      next: done,
-      error: () => {
+    console.log('route patient_id', this.patientId);
+    console.log('contact create payload', contactPayload);
+    this.service.create(contactPayload).subscribe({
+      next: (createdContact) => {
+        console.log('contact create response', createdContact);
+        const contactId = createdContact?.contact_id;
+        console.log('extracted contact_id', contactId);
+        if (!contactId || typeof contactId !== 'number') {
+          console.error('Missing contact_id in create contact response', createdContact);
+          this.saveError = 'Contact created response did not include contact_id.';
+          this.saving = false;
+          return;
+        }
+
+        const relationPayload = this.service.buildPatientContactRelationPayload(this.patientId, contactId, normalizedIsPrimary);
+        console.log('relation payload', relationPayload);
+        this.service.link(this.patientId, contactId, relationPayload.is_primary).subscribe({
+          next: done,
+          error: (error) => {
+            console.error('Contact relation create failed backend body:', error?.error);
+            this.saveError = 'Unable to save contact changes.';
+            this.saving = false;
+          }
+        });
+      },
+      error: (error) => {
+        console.error('Contact create failed backend body:', error?.error);
         this.saveError = 'Unable to save contact changes.';
         this.saving = false;
       }
     });
   }
 
-  private updateContactProfile(contactId: number, contactPayload: Partial<Contact>, isPrimary: boolean, done: () => void): void {
+  private updateContactProfile(contactId: number, contactPayload: ReturnType<ContactsService['buildContactPayload']>, isPrimary: boolean, done: () => void): void {
     this.service.update(contactId, contactPayload).subscribe({
       next: () => this.updatePatientContactRelation(contactId, isPrimary, done, true),
       error: () => {
@@ -241,11 +255,7 @@ export class ContactsComponent {
   }
 
   private updatePatientContactRelation(contactId: number, isPrimary: boolean, done: () => void, useUpdate: boolean): void {
-    const payload = {
-      patient: this.patientId,
-      contact: contactId,
-      is_primary: !!isPrimary
-    };
+    const payload = this.service.buildPatientContactRelationPayload(this.patientId, contactId, isPrimary);
     const relation$ = useUpdate
       ? this.service.updateLink(this.patientId, contactId, payload.is_primary)
       : this.service.link(this.patientId, contactId, payload.is_primary);
