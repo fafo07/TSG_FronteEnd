@@ -125,9 +125,14 @@ export class PatientNewComponent {
             notes: contactData.notes ?? undefined,
             is_primary: true
           };
+          const createWithContactPayload = this.contactsService.buildCreateWithContactPayload(primaryContactPayload);
+          if (!createWithContactPayload.full_name.trim()) {
+            this.errorMessage = 'Primary contact full_name is required.';
+            return EMPTY;
+          }
 
-          console.log('payload sent to POST /api/v1/patients/{patient_id}/contacts', primaryContactPayload);
-          return this.contactsService.createForPatient(patientId, primaryContactPayload).pipe(
+          console.log('payload sent to POST /api/v1/patients/{patient_id}/contacts', createWithContactPayload);
+          return this.contactsService.createForPatient(patientId, createWithContactPayload).pipe(
             tap(() => void this.router.navigate(['/patients', patientId, 'overview']))
           );
         }),

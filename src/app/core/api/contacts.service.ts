@@ -1,10 +1,20 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, expand, map, reduce } from 'rxjs';
+import { Observable, catchError, expand, map, reduce, throwError } from 'rxjs';
 
 import { environment } from '../config/environment';
 import { Contact, PatientContact } from '../../shared/models/models';
 import { PaginatedResponse, unwrapResults } from '../../shared/models/pagination';
+
+export type PatientContactCreateWithContactPayload = {
+  full_name: string;
+  relationship?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  notes?: string;
+  is_primary: boolean;
+};
 
 @Injectable({ providedIn: 'root' })
 export class ContactsService {
@@ -35,8 +45,29 @@ export class ContactsService {
     return this.http.post<Contact>(`${environment.apiBaseUrl}/contacts`, payload);
   }
 
+  buildCreateWithContactPayload(payload: Partial<Contact> & { is_primary: boolean }): PatientContactCreateWithContactPayload {
+    return {
+      full_name: payload.full_name ?? '',
+      relationship: payload.relationship ?? undefined,
+      phone: payload.phone ?? undefined,
+      email: payload.email ?? undefined,
+      address: payload.address ?? undefined,
+      notes: payload.notes ?? undefined,
+      is_primary: !!payload.is_primary
+    };
+  }
+
   createForPatient(patientId: number, payload: Partial<Contact> & { is_primary: boolean }): Observable<Contact> {
-    return this.http.post<Contact>(`${environment.apiBaseUrl}/patients/${patientId}/contacts`, payload);
+    const body = this.buildCreateWithContactPayload(payload);
+    console.log('POST /api/v1/patients/{patient_id}/contacts payload', body);
+    return this.http.post<Contact>(`${environment.apiBaseUrl}/patients/${patientId}/contacts`, body).pipe(
+      catchError((error: HttpErrorResponse) => {
+        if (error.status === 400) {
+          console.error('POST /api/v1/patients/{patient_id}/contacts 400 response body', error.error);
+        }
+        return throwError(() => error);
+      })
+    );
   }
 
   update(contactId: number, payload: Partial<Contact>): Observable<Contact> {

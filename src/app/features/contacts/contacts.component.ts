@@ -214,8 +214,14 @@ export class ContactsComponent {
       ...contactPayload,
       is_primary: normalizedIsPrimary
     };
+    const createWithContactPayload = this.service.buildCreateWithContactPayload(createPayload);
+    if (!createWithContactPayload.full_name.trim()) {
+      this.saveError = 'Full name is required.';
+      this.saving = false;
+      return;
+    }
 
-    this.service.createForPatient(this.patientId, createPayload).subscribe({
+    this.service.createForPatient(this.patientId, createWithContactPayload).subscribe({
       next: done,
       error: () => {
         this.saveError = 'Unable to save contact changes.';
