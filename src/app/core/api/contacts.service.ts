@@ -8,22 +8,15 @@ import { PaginatedResponse, unwrapResults } from '../../shared/models/pagination
 
 export type PatientContactCreateWithContactPayload = {
   full_name: string;
-  relationship?: string | null;
-  phone?: string | null;
-  email?: string | null;
-  address?: string | null;
-  notes?: string | null;
+  relationship?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  notes?: string;
   is_primary: boolean;
 };
 
-export type ContactCreatePayload = {
-  full_name: string;
-  relationship: string | null;
-  phone: string | null;
-  email: string | null;
-  address: string | null;
-  notes: string | null;
-};
+export type ContactCreatePayload = Partial<Contact> & { full_name: string };
 
 @Injectable({ providedIn: 'root' })
 export class ContactsService {
@@ -56,7 +49,7 @@ export class ContactsService {
 
   buildContactPayload(formValue: Partial<Contact>): ContactCreatePayload {
     return {
-      full_name: (formValue.full_name ?? '').trim(),
+      full_name: this.normalizeRequired(formValue.full_name),
       relationship: this.normalizeOptional(formValue.relationship),
       phone: this.normalizeOptional(formValue.phone),
       email: this.normalizeOptional(formValue.email),
@@ -147,8 +140,12 @@ export class ContactsService {
       );
   }
 
-  private normalizeOptional(value?: string | null): string | null {
+  private normalizeRequired(value?: string | null): string {
+    return (value ?? '').trim();
+  }
+
+  private normalizeOptional(value?: string | null): string | undefined {
     const normalized = (value ?? '').trim();
-    return normalized ? normalized : null;
+    return normalized ? normalized : undefined;
   }
 }
