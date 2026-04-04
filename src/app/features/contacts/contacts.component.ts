@@ -234,28 +234,23 @@ export class ContactsComponent {
       is_primary: !!isPrimary
     };
     const relation$ = useUpdate
-      ? this.service.unlink(this.patientId, contactId).pipe(
-          switchMap(() => {
-            console.log('recreating patient-contact relation', {
-              patientId: this.patientId,
-              contactId,
-              payload,
-              isPrimaryType: typeof payload.is_primary
-            });
-            return this.service.link(this.patientId, contactId, payload.is_primary);
-          })
-        )
+      ? this.service.updateLink(this.patientId, contactId, payload.is_primary)
       : this.service.link(this.patientId, contactId, payload.is_primary);
 
     if (useUpdate) {
-      console.log('deleting patient-contact relation', { patientId: this.patientId, contactId });
+      console.log('CONTACT RELATION UPDATE', {
+        patientId: this.patientId,
+        contactId,
+        payload,
+        isPrimaryType: typeof payload.is_primary
+      });
     }
 
     relation$.subscribe({
       next: done,
       error: (error) => {
         if (useUpdate) {
-          console.error('Temporary relation workaround failed (delete + recreate).', error);
+          console.error('Patient-contact relation update failed via PUT.', error);
         }
         this.saveError = 'Unable to save contact changes.';
         this.saving = false;
