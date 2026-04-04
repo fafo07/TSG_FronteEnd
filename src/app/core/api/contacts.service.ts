@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, map } from 'rxjs';
+import { Observable, expand, map, reduce } from 'rxjs';
 
 import { environment } from '../config/environment';
 import { Contact, PatientContact } from '../../shared/models/models';
@@ -19,6 +19,16 @@ export class ContactsService {
           return Array.isArray(data) ? list : { ...data, results: list };
         })
       );
+  }
+
+  listAll(): Observable<Contact[]> {
+    return this.list(1).pipe(
+      expand((pageData) => {
+        if (Array.isArray(pageData) || !pageData.next) return [];
+        return this.fetchPageByUrl(pageData.next);
+      }),
+      reduce((acc, pageData) => [...acc, ...unwrapResults(pageData)], [] as Contact[])
+    );
   }
 
   create(payload: Partial<Contact>): Observable<Contact> {
@@ -58,5 +68,17 @@ export class ContactsService {
 
   unlink(patientId: number, contactId: number): Observable<void> {
     return this.http.delete<void>(`${environment.apiBaseUrl}/patients/${patientId}/contacts/${contactId}`);
+  }
+
+  private fetchPageByUrl(url: string): Observable<PaginatedResponse<Contact> | Contact[]> {
+    const resolvedUrl = url.startsWith('http') ? url : `${environment.apiBaseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
+    return this.http
+      .get<PaginatedResponse<Contact> | Contact[]>(resolvedUrl)
+      .pipe(
+        map((data) => {
+          const list = unwrapResults(data);
+          return Array.isArray(data) ? list : { ...data, results: list };
+        })
+      );
   }
 }

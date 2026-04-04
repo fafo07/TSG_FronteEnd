@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, map } from 'rxjs';
+import { Observable, expand, map, reduce } from 'rxjs';
 
 import { environment } from '../config/environment';
 import { Patient } from '../../shared/models/models';
@@ -19,6 +19,13 @@ export class PatientsService {
     );
   }
 
+  listAll(search = '', country = ''): Observable<Patient[]> {
+    return this.list(search, country, 1).pipe(
+      expand((pageData) => (pageData.next ? this.fetchPageByUrl(pageData.next) : [])),
+      reduce((acc, pageData) => [...acc, ...pageData.results], [] as Patient[])
+    );
+  }
+
   getById(id: number): Observable<Patient> {
     return this.http.get<Patient>(`${environment.apiBaseUrl}/patients/${id}`).pipe(map((item) => this.normalize(item)));
   }
@@ -29,6 +36,13 @@ export class PatientsService {
 
   update(id: number, payload: Partial<Patient>): Observable<Patient> {
     return this.http.patch<Patient>(`${environment.apiBaseUrl}/patients/${id}`, this.toApiPayload(payload)).pipe(map((item) => this.normalize(item)));
+  }
+
+  private fetchPageByUrl(url: string): Observable<PaginatedResponse<Patient>> {
+    const resolvedUrl = url.startsWith('http') ? url : `${environment.apiBaseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
+    return this.http.get<PaginatedResponse<Patient>>(resolvedUrl).pipe(
+      map((res) => ({ ...res, results: res.results.map((item) => this.normalize(item)) }))
+    );
   }
 
   private normalize(item: Patient): Patient {

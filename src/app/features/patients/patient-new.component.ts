@@ -2,7 +2,7 @@ import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { EMPTY, switchMap, tap, catchError, finalize } from 'rxjs';
+import { EMPTY, map, switchMap, tap, catchError, finalize } from 'rxjs';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -91,7 +91,8 @@ export class PatientNewComponent {
     this.service
       .create(payload)
       .pipe(
-        switchMap((patient) =>
+        switchMap(() => this.resolveCreatedPatient(payload)),
+        switchMap((resolvedPatient) =>
           this.contactsService
             .create({
               full_name: contactData.full_name ?? undefined,
@@ -101,8 +102,29 @@ export class PatientNewComponent {
               notes: contactData.notes ?? undefined
             })
             .pipe(
-              switchMap((contact) => this.contactsService.link(patient.patient_id, contact.contact_id, true)),
-              tap(() => void this.router.navigate(['/patients', patient.patient_id, 'overview']))
+              switchMap(() =>
+                this.resolveCreatedContact({
+                  full_name: contactData.full_name ?? undefined,
+                  relationship: contactData.relationship ?? undefined,
+                  phone: contactData.phone ?? undefined,
+                  email: contactData.email ?? undefined,
+                  notes: contactData.notes ?? undefined
+                }).pipe(
+                  switchMap((resolvedContact) => {
+                    const patientId = resolvedPatient?.patient_id ?? null;
+                    const contactId = resolvedContact?.contact_id ?? null;
+                    if (!patientId || !contactId) {
+                      console.error('Missing patientId/contactId after fallback resolution', { patientId, contactId });
+                      this.errorMessage = 'Unable to create patient-contact relation because IDs could not be resolved.';
+                      return EMPTY;
+                    }
+
+                    return this.contactsService.link(patientId, contactId, true).pipe(
+                      tap(() => void this.router.navigate(['/patients', patientId, 'overview']))
+                    );
+                  })
+                )
+              )
             )
         ),
         catchError(() => {
@@ -114,6 +136,52 @@ export class PatientNewComponent {
         })
       )
       .subscribe();
+  }
+
+  private resolveCreatedPatient(payload: Partial<Patient>) {
+    return this.service.listAll().pipe(
+      map((patients) => {
+        const matches = patients
+          .filter((patient) =>
+            this.sameText(patient.full_name, payload.full_name) &&
+            this.sameText(patient.country_code ?? patient.country, payload.country_code ?? payload.country) &&
+            this.sameText(patient.date_of_birth, payload.date_of_birth) &&
+            this.sameText(patient.diagnosis_date, payload.diagnosis_date) &&
+            this.sameText(patient.family_history, payload.family_history)
+          )
+          .sort((a, b) => b.patient_id - a.patient_id);
+
+        const fallback = [...patients].sort((a, b) => b.patient_id - a.patient_id)[0] ?? null;
+        const resolvedPatient = matches[0] ?? fallback;
+        console.log('Resolved patient after create', resolvedPatient);
+        return resolvedPatient;
+      })
+    );
+  }
+
+  private resolveCreatedContact(payload: { full_name?: string; relationship?: string; phone?: string; email?: string; notes?: string }) {
+    return this.contactsService.listAll().pipe(
+      map((contacts) => {
+        const matches = contacts
+          .filter((contact) =>
+            this.sameText(contact.full_name, payload.full_name) &&
+            this.sameText(contact.relationship, payload.relationship) &&
+            this.sameText(contact.phone, payload.phone) &&
+            this.sameText(contact.email, payload.email) &&
+            this.sameText(contact.notes, payload.notes)
+          )
+          .sort((a, b) => b.contact_id - a.contact_id);
+
+        const fallback = [...contacts].sort((a, b) => b.contact_id - a.contact_id)[0] ?? null;
+        const resolvedContact = matches[0] ?? fallback;
+        console.log('Resolved contact after create', resolvedContact);
+        return resolvedContact;
+      })
+    );
+  }
+
+  private sameText(a?: string, b?: string): boolean {
+    return (a ?? '').trim() === (b ?? '').trim();
   }
 
   back(): void { void this.router.navigate(['/patients']); }
