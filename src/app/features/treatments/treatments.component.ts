@@ -61,7 +61,7 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
 
         <mat-form-field class="notes-field"><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="notes"></textarea></mat-form-field>
         <div style="grid-column:1/-1;display:flex;gap:.5rem">
-          <button mat-flat-button type="submit" color="primary" [disabled]="form.invalid || saving || !selectedManifestationId">{{ selectedTreatmentId ? 'Update treatment' : 'Create treatment' }}</button>
+          <button mat-flat-button type="submit" color="primary" [disabled]="form.invalid || saving || (!selectedTreatmentId && !selectedManifestationId)">{{ selectedTreatmentId ? 'Update treatment' : 'Create treatment' }}</button>
           <button mat-stroked-button type="button" (click)="closeManageMode()">Cancel</button>
         </div>
       </form>
@@ -169,9 +169,8 @@ export class TreatmentsComponent {
   }
 
   save(): void {
-    if (!this.manageMode || this.form.invalid || !this.selectedManifestationId) return;
-    this.saving = true;
-    this.saveError = '';
+    if (!this.manageMode || this.form.invalid || this.saving) return;
+
     const raw = this.form.getRawValue();
     const payload = {
       medication: raw.medication ?? undefined,
@@ -183,34 +182,47 @@ export class TreatmentsComponent {
       notes: raw.notes ?? undefined
     };
 
-    console.log('Payload enviado a la API:', {
-      ...payload,
-      patient: this.patientId,
-      manifestation_id: this.selectedManifestationId,
-      treatment_id: this.selectedTreatmentId
-    });
-    console.log('Selected manifestation ID:', this.selectedManifestationId);
-    console.log('Selected treatment ID:', this.selectedTreatmentId);
-
-    const done = () => {
-      this.resetManageState();
-      this.saving = false;
-      this.load();
-    };
-
     if (this.selectedTreatmentId) {
-      this.treatmentsService.update(this.selectedTreatmentId, payload).subscribe({
-        next: done,
-        error: () => {
-          this.saving = false;
-          this.saveError = 'Unable to save treatment changes.';
-        }
-      });
+      this.updateTreatment(this.selectedTreatmentId, payload);
       return;
     }
 
-    this.treatmentsService.create(this.patientId, this.selectedManifestationId, payload).subscribe({
-      next: done,
+    if (!this.selectedManifestationId) {
+      this.saveError = 'Select a treatment to edit or open Treatments from a manifestation to create one.';
+      return;
+    }
+
+    this.createTreatment(this.selectedManifestationId, payload);
+  }
+
+
+  private updateTreatment(treatmentId: number, payload: { medication?: string; dose?: string; indication?: string; start_date?: string; end_date?: string; status?: string; notes?: string }): void {
+    this.saving = true;
+    this.saveError = '';
+
+    this.treatmentsService.update(treatmentId, payload).subscribe({
+      next: () => {
+        this.resetManageState();
+        this.saving = false;
+        this.load();
+      },
+      error: () => {
+        this.saving = false;
+        this.saveError = 'Unable to save treatment changes.';
+      }
+    });
+  }
+
+  private createTreatment(manifestationId: number, payload: { medication?: string; dose?: string; indication?: string; start_date?: string; end_date?: string; status?: string; notes?: string }): void {
+    this.saving = true;
+    this.saveError = '';
+
+    this.treatmentsService.create(this.patientId, manifestationId, payload).subscribe({
+      next: () => {
+        this.resetManageState();
+        this.saving = false;
+        this.load();
+      },
       error: () => {
         this.saving = false;
         this.saveError = 'Unable to save treatment changes.';
