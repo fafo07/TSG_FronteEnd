@@ -151,9 +151,7 @@ export class CatalogsComponent {
   hasPrevious = false;
 
   get canEditCatalogs(): boolean {
-    const role = (this.auth.getRole() ?? '').toLowerCase().trim();
-    if (!role) return true;
-    return !['viewer', 'guest', 'readonly', 'read-only', 'read_only'].includes(role);
+    return this.auth.isAuthenticated();
   }
 
   editingCountryCode: string | null = null;
