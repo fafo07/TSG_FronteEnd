@@ -151,8 +151,9 @@ export class CatalogsComponent {
   hasPrevious = false;
 
   get canEditCatalogs(): boolean {
-    const role = (this.auth.getRole() ?? '').toLowerCase();
-    return role === 'admin' || role === 'administrator';
+    const role = (this.auth.getRole() ?? '').toLowerCase().trim();
+    if (!role) return true;
+    return !['viewer', 'guest', 'readonly', 'read-only', 'read_only'].includes(role);
   }
 
   editingCountryCode: string | null = null;
@@ -259,7 +260,10 @@ export class CatalogsComponent {
     const normalized = this.normalizeTerm(term);
     this.filteredCountries = !normalized
       ? [...this.countries]
-      : this.countries.filter((country) => this.matchByName(normalized, country.country_name));
+      : this.countries.filter((country) => {
+          const name = country.country_name ?? (country as Country & { name?: string; countryName?: string }).name ?? (country as Country & { countryName?: string }).countryName;
+          return this.matchByName(normalized, name);
+        });
   }
 
   applySystemFilter(term: string): void {
@@ -267,7 +271,10 @@ export class CatalogsComponent {
     const normalized = this.normalizeTerm(term);
     this.filteredSystems = !normalized
       ? [...this.systems]
-      : this.systems.filter((system) => this.matchByName(normalized, system.system_name));
+      : this.systems.filter((system) => {
+          const name = system.system_name ?? (system as System & { name?: string; systemName?: string }).name ?? (system as System & { systemName?: string }).systemName;
+          return this.matchByName(normalized, name);
+        });
   }
 
   applyFindingFilter(term: string): void {
@@ -275,7 +282,13 @@ export class CatalogsComponent {
     const normalized = this.normalizeTerm(term);
     this.filteredFindings = !normalized
       ? [...this.findings]
-      : this.findings.filter((finding) => this.matchByName(normalized, finding.finding_name ?? finding.description));
+      : this.findings.filter((finding) => {
+          const name = finding.finding_name
+            ?? (finding as FindingCatalog & { name?: string; findingName?: string }).name
+            ?? (finding as FindingCatalog & { findingName?: string }).findingName
+            ?? finding.description;
+          return this.matchByName(normalized, name);
+        });
   }
 
   editCountry(country: Country): void {
