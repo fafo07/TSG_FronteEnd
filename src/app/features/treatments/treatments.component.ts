@@ -32,8 +32,6 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
 
     <mat-card class="page-card">
       <h2>Treatments</h2>
-      <p style="margin-top:-.25rem;color:#475569">Read-only review by default. Use Manifestations actions to add or edit treatment.</p>
-
       <form *ngIf="manageMode" [formGroup]="form" (ngSubmit)="save()" class="form-grid form-grid-3" style="margin:.75rem 0 1rem">
         <mat-form-field><mat-label>Medication</mat-label><input matInput formControlName="medication" /></mat-form-field>
         <mat-form-field><mat-label>Dose</mat-label><input matInput formControlName="dose" /></mat-form-field>
@@ -41,14 +39,14 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
 
         <mat-form-field>
           <mat-label>Start date</mat-label>
-          <input matInput [matDatepicker]="startPicker" [max]="today" formControlName="start_date" readonly />
+          <input matInput [matDatepicker]="startPicker" [max]="today" formControlName="start_date" />
           <mat-datepicker-toggle matIconSuffix [for]="startPicker"></mat-datepicker-toggle>
           <mat-datepicker #startPicker></mat-datepicker>
         </mat-form-field>
 
         <mat-form-field>
           <mat-label>End date</mat-label>
-          <input matInput [matDatepicker]="endPicker" formControlName="end_date" readonly />
+          <input matInput [matDatepicker]="endPicker" formControlName="end_date" />
           <mat-datepicker-toggle matIconSuffix [for]="endPicker"></mat-datepicker-toggle>
           <mat-datepicker #endPicker></mat-datepicker>
         </mat-form-field>
@@ -63,7 +61,7 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
 
         <mat-form-field class="notes-field"><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="notes"></textarea></mat-form-field>
         <div style="grid-column:1/-1;display:flex;gap:.5rem">
-          <button mat-flat-button type="submit" color="primary" [disabled]="form.invalid || saving">{{ selectedTreatmentId ? 'Update treatment' : 'Create treatment' }}</button>
+          <button mat-flat-button type="submit" color="primary" [disabled]="form.invalid || saving || (!selectedTreatmentId && !selectedManifestationId)">{{ selectedTreatmentId ? 'Update treatment' : 'Create treatment' }}</button>
           <button mat-stroked-button type="button" (click)="closeManageMode()">Cancel</button>
         </div>
       </form>
@@ -82,6 +80,7 @@ import { PatientTabsComponent } from '../../shared/ui/patient-tabs.component';
         <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>Status</th><td mat-cell *matCellDef="let t">{{ t.status || '-' }}</td></ng-container>
         <ng-container matColumnDef="dates"><th mat-header-cell *matHeaderCellDef>Dates</th><td mat-cell *matCellDef="let t">{{ t.start_date || '-' }} → {{ t.end_date || '-' }}</td></ng-container>
         <ng-container matColumnDef="notes"><th mat-header-cell *matHeaderCellDef>Notes</th><td mat-cell *matCellDef="let t">{{ t.notes || '-' }}</td></ng-container>
+        <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Actions</th><td mat-cell *matCellDef="let t"><button mat-button type="button" (click)="startEdit(t)">Edit</button></td></ng-container>
         <tr mat-header-row *matHeaderRowDef="columns"></tr><tr mat-row *matRowDef="let row; columns: columns"></tr>
       </table>
     </mat-card>
@@ -107,10 +106,10 @@ export class TreatmentsComponent {
     Number(this.route.snapshot.queryParamMap.get('treatmentId')) ||
     null;
   selectedTreatment: Treatment | null = null;
-  manageMode = !!this.selectedManifestationId || !!this.selectedTreatmentId;
+  manageMode = true;
 
   items: Treatment[] = [];
-  columns = ['system', 'findings', 'medication', 'dose', 'indication', 'status', 'dates', 'notes'];
+  columns = ['system', 'findings', 'medication', 'dose', 'indication', 'status', 'dates', 'notes', 'actions'];
   loading = false;
   error = false;
   saving = false;
@@ -170,9 +169,8 @@ export class TreatmentsComponent {
   }
 
   save(): void {
-    if (!this.manageMode || this.form.invalid || !this.selectedManifestationId) return;
-    this.saving = true;
-    this.saveError = '';
+    if (!this.manageMode || this.form.invalid || this.saving) return;
+
     const raw = this.form.getRawValue();
     const payload = {
       medication: raw.medication ?? undefined,
@@ -184,34 +182,47 @@ export class TreatmentsComponent {
       notes: raw.notes ?? undefined
     };
 
-    console.log('Payload enviado a la API:', {
-      ...payload,
-      patient: this.patientId,
-      manifestation_id: this.selectedManifestationId,
-      treatment_id: this.selectedTreatmentId
-    });
-    console.log('Selected manifestation ID:', this.selectedManifestationId);
-    console.log('Selected treatment ID:', this.selectedTreatmentId);
-
-    const done = () => {
-      this.resetManageState();
-      this.saving = false;
-      this.load();
-    };
-
     if (this.selectedTreatmentId) {
-      this.treatmentsService.update(this.selectedTreatmentId, payload).subscribe({
-        next: done,
-        error: () => {
-          this.saving = false;
-          this.saveError = 'Unable to save treatment changes.';
-        }
-      });
+      this.updateTreatment(this.selectedTreatmentId, payload);
       return;
     }
 
-    this.treatmentsService.create(this.patientId, this.selectedManifestationId, payload).subscribe({
-      next: done,
+    if (!this.selectedManifestationId) {
+      this.saveError = 'Select a treatment to edit or open Treatments from a manifestation to create one.';
+      return;
+    }
+
+    this.createTreatment(this.selectedManifestationId, payload);
+  }
+
+
+  private updateTreatment(treatmentId: number, payload: { medication?: string; dose?: string; indication?: string; start_date?: string; end_date?: string; status?: string; notes?: string }): void {
+    this.saving = true;
+    this.saveError = '';
+
+    this.treatmentsService.update(treatmentId, payload).subscribe({
+      next: () => {
+        this.resetManageState();
+        this.saving = false;
+        this.load();
+      },
+      error: () => {
+        this.saving = false;
+        this.saveError = 'Unable to save treatment changes.';
+      }
+    });
+  }
+
+  private createTreatment(manifestationId: number, payload: { medication?: string; dose?: string; indication?: string; start_date?: string; end_date?: string; status?: string; notes?: string }): void {
+    this.saving = true;
+    this.saveError = '';
+
+    this.treatmentsService.create(this.patientId, manifestationId, payload).subscribe({
+      next: () => {
+        this.resetManageState();
+        this.saving = false;
+        this.load();
+      },
       error: () => {
         this.saving = false;
         this.saveError = 'Unable to save treatment changes.';
@@ -222,6 +233,23 @@ export class TreatmentsComponent {
   closeManageMode(): void {
     this.resetManageState();
     void this.router.navigate(['/patients', this.patientId, 'treatments']);
+  }
+
+  startEdit(treatment: Treatment): void {
+    this.manageMode = true;
+    this.selectedTreatmentId = treatment.treatment_id;
+    this.selectedManifestationId = treatment.manifestation_id;
+    this.selectedTreatment = treatment;
+    this.form.patchValue({
+      medication: treatment.medication ?? '',
+      dose: treatment.dose ?? '',
+      indication: treatment.indication ?? '',
+      start_date: this.parseDate(treatment.start_date),
+      end_date: this.parseDate(treatment.end_date),
+      status: this.normalizeStatus(treatment.status),
+      notes: treatment.notes ?? ''
+    });
+    this.resetFormVisualState();
   }
 
   private prefillManageFormIfNeeded(): void {
@@ -266,7 +294,7 @@ export class TreatmentsComponent {
     this.selectedManifestationId = null;
     this.selectedTreatmentId = null;
     this.selectedTreatment = null;
-    this.manageMode = false;
+    this.manageMode = true;
     this.saveError = '';
 
     const resetState = { medication: '', dose: '', indication: '', start_date: null, end_date: null, status: 'ACTIVE', notes: '' };

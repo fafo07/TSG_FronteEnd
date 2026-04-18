@@ -45,8 +45,12 @@ import { PageHeaderComponent } from '../../shared/ui/page-header.component';
             <mat-form-field><mat-label>Name</mat-label><input matInput formControlName="country_name" /></mat-form-field>
             <button mat-flat-button type="submit" color="primary" [disabled]="countryForm.invalid || !canEditCatalogs">{{ editingCountryCode ? 'Update' : 'Save' }}</button>
           </form>
-          <app-empty-state *ngIf="!countries.length" message="No countries found" />
-          <table *ngIf="countries.length" mat-table [dataSource]="countries" class="full-width">
+          <div style="display:flex;gap:.75rem;align-items:center;margin:.5rem 0 1rem">
+            <mat-form-field style="max-width:420px;width:100%"><mat-label>Search by name</mat-label><input matInput [value]="countrySearchTerm" (input)="applyCountryFilter($any($event.target).value)" /></mat-form-field>
+            <button mat-button (click)="applyCountryFilter('')" [disabled]="!countrySearchTerm">Clear</button>
+          </div>
+          <app-empty-state *ngIf="!filteredCountries.length" message="No countries found" />
+          <table *ngIf="filteredCountries.length" mat-table [dataSource]="filteredCountries" class="full-width">
             <ng-container matColumnDef="country_code"><th mat-header-cell *matHeaderCellDef>Code</th><td mat-cell *matCellDef="let c">{{ c.country_code }}</td></ng-container>
             <ng-container matColumnDef="country_name"><th mat-header-cell *matHeaderCellDef>Name</th><td mat-cell *matCellDef="let c">{{ c.country_name }}</td></ng-container>
             <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Actions</th><td mat-cell *matCellDef="let c"><button mat-button [disabled]="!canEditCatalogs" (click)="editCountry(c)">Edit</button></td></ng-container>
@@ -65,8 +69,12 @@ import { PageHeaderComponent } from '../../shared/ui/page-header.component';
             <mat-form-field><mat-label>Name</mat-label><input matInput formControlName="system_name" /></mat-form-field>
             <button mat-flat-button type="submit" color="primary" [disabled]="systemForm.invalid || !canEditCatalogs">{{ editingSystemCode ? 'Update' : 'Save' }}</button>
           </form>
-          <app-empty-state *ngIf="!systems.length" message="No systems found" />
-          <table *ngIf="systems.length" mat-table [dataSource]="systems" class="full-width">
+          <div style="display:flex;gap:.75rem;align-items:center;margin:.5rem 0 1rem">
+            <mat-form-field style="max-width:420px;width:100%"><mat-label>Search by name</mat-label><input matInput [value]="systemSearchTerm" (input)="applySystemFilter($any($event.target).value)" /></mat-form-field>
+            <button mat-button (click)="applySystemFilter('')" [disabled]="!systemSearchTerm">Clear</button>
+          </div>
+          <app-empty-state *ngIf="!filteredSystems.length" message="No systems found" />
+          <table *ngIf="filteredSystems.length" mat-table [dataSource]="filteredSystems" class="full-width">
             <ng-container matColumnDef="system_code"><th mat-header-cell *matHeaderCellDef>Code</th><td mat-cell *matCellDef="let s">{{ s.system_code }}</td></ng-container>
             <ng-container matColumnDef="system_name"><th mat-header-cell *matHeaderCellDef>Name</th><td mat-cell *matCellDef="let s">{{ s.system_name }}</td></ng-container>
             <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Actions</th><td mat-cell *matCellDef="let s"><button mat-button [disabled]="!canEditCatalogs" (click)="editSystem(s)">Edit</button></td></ng-container>
@@ -82,14 +90,18 @@ import { PageHeaderComponent } from '../../shared/ui/page-header.component';
         <ng-container *ngSwitchDefault>
           <form [formGroup]="findingForm" (ngSubmit)="saveFinding()" class="form-grid form-grid-3">
             <mat-form-field><mat-label>Code</mat-label><input matInput formControlName="finding_code" [readonly]="!!editingFindingCode" /><mat-error *ngIf="findingForm.get('finding_code')?.hasError('required')">Code is required.</mat-error><mat-error *ngIf="findingForm.get('finding_code')?.hasError('maxlength')">Max length is 50.</mat-error></mat-form-field>
-            <mat-form-field><mat-label>System</mat-label><mat-select formControlName="system_code"><mat-option *ngFor="let s of systems" [value]="s.system_code">{{ s.system_name }}</mat-option></mat-select><mat-error *ngIf="findingForm.get('system_code')?.hasError('required')">System is required.</mat-error></mat-form-field>
+            <mat-form-field><mat-label>System</mat-label><mat-select formControlName="system_code"><mat-option *ngFor="let s of systemOptions" [value]="s.system_code">{{ s.system_name }}</mat-option></mat-select><mat-error *ngIf="findingForm.get('system_code')?.hasError('required')">System is required.</mat-error></mat-form-field>
             <mat-form-field><mat-label>Finding name</mat-label><input matInput formControlName="finding_name" /><mat-error *ngIf="findingForm.get('finding_name')?.hasError('required')">Name is required.</mat-error><mat-error *ngIf="findingForm.get('finding_name')?.hasError('maxlength')">Max length is 255.</mat-error></mat-form-field>
             <mat-form-field class="notes-field" style="grid-column:1/-1"><mat-label>Notes</mat-label><textarea matInput rows="5" formControlName="description"></textarea></mat-form-field>
             <mat-checkbox formControlName="is_active">Active</mat-checkbox>
             <div style="display:flex;justify-content:flex-end;grid-column:1/-1"><button mat-flat-button type="submit" color="primary" [disabled]="findingForm.invalid || !canEditCatalogs">{{ editingFindingCode ? 'Update' : 'Save' }}</button></div>
           </form>
-          <app-empty-state *ngIf="!findings.length" message="No findings found" />
-          <table *ngIf="findings.length" mat-table [dataSource]="findings" class="full-width">
+          <div style="display:flex;gap:.75rem;align-items:center;margin:.5rem 0 1rem">
+            <mat-form-field style="max-width:420px;width:100%"><mat-label>Search by name</mat-label><input matInput [value]="findingSearchTerm" (input)="applyFindingFilter($any($event.target).value)" /></mat-form-field>
+            <button mat-button (click)="applyFindingFilter('')" [disabled]="!findingSearchTerm">Clear</button>
+          </div>
+          <app-empty-state *ngIf="!filteredFindings.length" message="No findings found" />
+          <table *ngIf="filteredFindings.length" mat-table [dataSource]="filteredFindings" class="full-width">
             <ng-container matColumnDef="finding_code"><th mat-header-cell *matHeaderCellDef>Code</th><td mat-cell *matCellDef="let f">{{ f.finding_code }}</td></ng-container>
             <ng-container matColumnDef="system_code"><th mat-header-cell *matHeaderCellDef>System</th><td mat-cell *matCellDef="let f">{{ f.system || f.system_code }}</td></ng-container>
             <ng-container matColumnDef="finding_name"><th mat-header-cell *matHeaderCellDef>Finding</th><td mat-cell *matCellDef="let f">{{ f.finding_name }}</td></ng-container>
@@ -124,11 +136,23 @@ export class CatalogsComponent {
   systems: System[] = [];
   findings: FindingCatalog[] = [];
 
+  filteredCountries: Country[] = [];
+  filteredSystems: System[] = [];
+  filteredFindings: FindingCatalog[] = [];
+
+  countrySearchTerm = '';
+  systemSearchTerm = '';
+  findingSearchTerm = '';
+
+  systemOptions: System[] = [];
+
   page = 1;
   hasNext = false;
   hasPrevious = false;
-  userRole = (this.auth.getRole() ?? '').toLowerCase();
-  canEditCatalogs = this.userRole === 'admin';
+
+  get canEditCatalogs(): boolean {
+    return this.auth.isAuthenticated();
+  }
 
   editingCountryCode: string | null = null;
   editingSystemCode: string | null = null;
@@ -162,7 +186,7 @@ export class CatalogsComponent {
     } else if (url.includes('/catalogs/findings')) {
       this.mode = 'findings';
       this.title = 'Catalogs - Findings';
-      this.systemsService.list(1).subscribe((systems) => (this.systems = systems.results));
+      this.systemsService.list(1).subscribe((systems) => (this.systemOptions = systems.results));
     } else {
       this.mode = 'systems';
       this.title = 'Catalogs - Systems';
@@ -184,6 +208,7 @@ export class CatalogsComponent {
       this.countriesService.list(page).subscribe({
         next: (res) => {
           this.countries = res.results;
+          this.applyCountryFilter(this.countrySearchTerm);
           this.hasNext = !!res.next;
           this.hasPrevious = !!res.previous;
           this.loading = false;
@@ -200,6 +225,7 @@ export class CatalogsComponent {
       this.systemsService.list(page).subscribe({
         next: (res) => {
           this.systems = res.results;
+          this.applySystemFilter(this.systemSearchTerm);
           this.hasNext = !!res.next;
           this.hasPrevious = !!res.previous;
           this.loading = false;
@@ -215,6 +241,7 @@ export class CatalogsComponent {
     this.findingsService.list(page).subscribe({
       next: (res) => {
         this.findings = res.results;
+        this.applyFindingFilter(this.findingSearchTerm);
         this.hasNext = !!res.next;
         this.hasPrevious = !!res.previous;
         this.loading = false;
@@ -224,6 +251,42 @@ export class CatalogsComponent {
         this.loading = false;
       }
     });
+  }
+
+  applyCountryFilter(term: string): void {
+    this.countrySearchTerm = term;
+    const normalized = this.normalizeTerm(term);
+    this.filteredCountries = !normalized
+      ? [...this.countries]
+      : this.countries.filter((country) => {
+          const name = country.country_name ?? (country as Country & { name?: string; countryName?: string }).name ?? (country as Country & { countryName?: string }).countryName;
+          return this.matchByName(normalized, name);
+        });
+  }
+
+  applySystemFilter(term: string): void {
+    this.systemSearchTerm = term;
+    const normalized = this.normalizeTerm(term);
+    this.filteredSystems = !normalized
+      ? [...this.systems]
+      : this.systems.filter((system) => {
+          const name = system.system_name ?? (system as System & { name?: string; systemName?: string }).name ?? (system as System & { systemName?: string }).systemName;
+          return this.matchByName(normalized, name);
+        });
+  }
+
+  applyFindingFilter(term: string): void {
+    this.findingSearchTerm = term;
+    const normalized = this.normalizeTerm(term);
+    this.filteredFindings = !normalized
+      ? [...this.findings]
+      : this.findings.filter((finding) => {
+          const name = finding.finding_name
+            ?? (finding as FindingCatalog & { name?: string; findingName?: string }).name
+            ?? (finding as FindingCatalog & { findingName?: string }).findingName
+            ?? finding.description;
+          return this.matchByName(normalized, name);
+        });
   }
 
   editCountry(country: Country): void {
@@ -322,5 +385,13 @@ export class CatalogsComponent {
       this.findingForm.reset({ finding_code: '', system_code: '', finding_name: '', description: '', is_active: true });
       this.load('findings', this.page);
     });
+  }
+
+  private normalizeTerm(term: string): string {
+    return term.toLowerCase().trim();
+  }
+
+  private matchByName(searchTerm: string, value?: string | null): boolean {
+    return (value ?? '').toLowerCase().trim().includes(searchTerm);
   }
 }

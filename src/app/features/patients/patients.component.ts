@@ -26,8 +26,8 @@ import { PageHeaderComponent } from '../../shared/ui/page-header.component';
     </app-page-header>
 
     <div style="display:flex;gap:.75rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
-      <mat-form-field style="max-width:420px;width:100%"><mat-label>Search by name</mat-label><input matInput [formControl]="searchControl" (keyup.enter)="load(1)"></mat-form-field>
-      <button mat-stroked-button color="primary" (click)="load(1)">Search</button>
+      <mat-form-field style="max-width:420px;width:100%"><mat-label>Search by name</mat-label><input matInput [formControl]="searchControl" (input)="applyLocalFilter()" (keyup.enter)="applyLocalFilter()"></mat-form-field>
+      <button mat-stroked-button color="primary" (click)="applyLocalFilter()">Search</button>
       <button mat-button (click)="clearSearch()" [disabled]="!searchControl.value">Clear</button>
     </div>
 
@@ -35,9 +35,9 @@ import { PageHeaderComponent } from '../../shared/ui/page-header.component';
     <app-error-state *ngIf="error" message="Failed to load patients" (retry)="load(page)" />
 
     <ng-container *ngIf="!loading && !error">
-      <app-empty-state *ngIf="!patients.length" message="No patients found yet" actionLabel="Create patient" (action)="goNew()" />
+      <app-empty-state *ngIf="!filteredPatients.length" message="No patients found yet" actionLabel="Create patient" (action)="goNew()" />
 
-      <table *ngIf="patients.length" mat-table [dataSource]="patients" class="full-width">
+      <table *ngIf="filteredPatients.length" mat-table [dataSource]="filteredPatients" class="full-width">
         <ng-container matColumnDef="patient_id"><th mat-header-cell *matHeaderCellDef>ID</th><td mat-cell *matCellDef="let p">{{ p.patient_id }}</td></ng-container>
         <ng-container matColumnDef="full_name"><th mat-header-cell *matHeaderCellDef>Full name</th><td mat-cell *matCellDef="let p">{{ p.full_name }}</td></ng-container>
         <ng-container matColumnDef="country_code"><th mat-header-cell *matHeaderCellDef>Country</th><td mat-cell *matCellDef="let p">{{ countryName(p) }}</td></ng-container>
@@ -63,6 +63,7 @@ export class PatientsComponent {
   private router = inject(Router);
 
   patients: Patient[] = [];
+  filteredPatients: Patient[] = [];
   displayedColumns = ['patient_id', 'full_name', 'country_code', 'diagnosis_date', 'actions'];
   loading = false;
   error = false;
@@ -82,12 +83,13 @@ export class PatientsComponent {
     if (page < 1) return;
     this.loading = true;
     this.error = false;
-    this.service.list((this.searchControl.value ?? '').trim(), '', page).subscribe({
+    this.service.list('', '', page).subscribe({
       next: (data) => {
         this.patients = data.results;
         this.page = page;
         this.hasNext = !!data.next;
         this.hasPrevious = !!data.previous;
+        this.applyLocalFilter();
         this.loading = false;
       },
       error: () => {
@@ -97,9 +99,22 @@ export class PatientsComponent {
     });
   }
 
+  applyLocalFilter(): void {
+    const searchTerm = (this.searchControl.value ?? '').toLowerCase().trim();
+    if (!searchTerm) {
+      this.filteredPatients = [...this.patients];
+      return;
+    }
+
+    this.filteredPatients = this.patients.filter((patient) => {
+      const raw = (patient.full_name ?? (patient as Patient & { name?: string; patientName?: string }).name ?? (patient as Patient & { patientName?: string }).patientName ?? '');
+      return raw.toLowerCase().trim().includes(searchTerm);
+    });
+  }
+
   clearSearch(): void {
     this.searchControl.setValue('');
-    this.load(1);
+    this.applyLocalFilter();
   }
 
   countryName(patient: Patient): string {
